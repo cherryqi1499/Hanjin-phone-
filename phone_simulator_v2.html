@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Yonsei Parallel World - iOS Simulator</title>
+    <style>
+        img, .app-icon, .screen {
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; letter-spacing: -0.2px; }
+        body { background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; color: #fff; }
+        
+        .phone-case {
+            width: 100%; max-width: 414px; height: 100%; max-height: 896px;
+            background: #000; position: relative; overflow: hidden;
+            display: flex; flex-direction: column;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.9);
+        }
+        @media (min-width: 450px) {
+            .phone-case { border-radius: 48px; border: 12px solid #1c1c1e; height: 850px; }
+        }
+
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; overflow: hidden;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+        }
+
+        /* 状态栏与灵动岛 */
+        .status-bar {
+            height: 44px; padding: 0 24px; display: flex; justify-content: space-between; align-items: center;
+            font-size: 14px; font-weight: 600; z-index: 1000; flex-shrink: 0; color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.6); position: relative;
+        }
+        .dynamic-island {
+            position: absolute; left: 50%; transform: translateX(-50%); top: 5px;
+            width: 112px; height: 29px; background: #000; border-radius: 999px;
+            display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 10px;
+            font-size: 11px; color: #fff; z-index: 1100; transition: width 0.28s ease;
+            box-shadow: none; border: 1px solid rgba(255,255,255,0.04);
+        }
+        .dynamic-island #di-icon { font-size: 10px; opacity: .82; }
+        .dynamic-island #di-text { font-size: 10px !important; max-width: 84px !important; }
+        .dynamic-island.playing { width: 190px; background: #000; border: 1px solid rgba(255,255,255,0.12); justify-content: space-between; }
+        .status-right { display:flex; align-items:center; justify-content:flex-end; gap:5px; margin-left:auto; min-width:92px; }
+        .ios-signal { display:flex; align-items:flex-end; gap:2px; height:14px; }
+        .ios-signal span { display:block; width:3px; border-radius:2px 2px 0 0; background:#fff; }
+        .ios-signal span:nth-child(1){height:5px}.ios-signal span:nth-child(2){height:8px}.ios-signal span:nth-child(3){height:11px}.ios-signal span:nth-child(4){height:14px}
+        .ios-wifi { display:none; }
+        .status-5g { font-size:12px; font-weight:700; letter-spacing:0; margin:0 2px 0 3px; }
+        .ios-battery { width:22px; height:11px; border:1.5px solid rgba(255,255,255,.95); border-radius:3px; padding:1px; position:relative; margin-left:1px; }
+        .ios-battery:after { content:''; position:absolute; right:-3.5px; top:2.5px; width:2px; height:4px; border-radius:0 2px 2px 0; background:#fff; }
+        .ios-battery-inner { width:84%; height:100%; background:#fff; border-radius:1px; }
+        .status-battery-percent { font-size:11px; font-weight:700; margin-left:1px; }
+
+        /* 锁屏 */
+        #lock-screen {
+            background-color: #1a1a2e; background-size: cover; background-position: center;
+            justify-content: flex-start; align-items: stretch; padding: 112px 20px 28px 20px; z-index: 500;
+        }
+        .lock-content { display: flex; flex-direction: column; align-items: center; text-shadow: 0 2px 10px rgba(0,0,0,0.5); flex: 0 0 auto; }
+        #lock-screen .lock-notification { margin-top: 30px; flex-shrink: 0; }
+        .lock-swipe-area { position:absolute; left:0; right:0; bottom:18px; display:flex; flex-direction:column; align-items:center; padding-bottom:env(safe-area-inset-bottom, 0px); cursor:pointer; z-index:2; }
+        .lock-date { font-size: 16px; font-weight: 500; opacity: 0.9; margin-bottom: 4px; }
+        .lock-time { font-size: 78px; font-weight: 300; letter-spacing: -2px; line-height: 1; }
+
+        .lock-notification {
+            background: rgba(255, 255, 255, 0.22); backdrop-filter: blur(25px);
+            border-radius: 20px; padding: 14px 18px; width: 100%; max-width: 365px; margin: 0 auto;
+            color: #fff; box-shadow: 0 8px 32px rgba(0,0,0,0.25); cursor: pointer; border: 1px solid rgba(255,255,255,0.2);
+        }
+        @keyframes bounceText { 0%, 100% { opacity: 0.4; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
+        .swipe-hint { font-size: 13px; font-weight: 500; text-align: center; color: rgba(255,255,255,0.85); animation: bounceText 2s infinite ease-in-out; }
+        .swipe-up-bar { width: 130px; height: 5px; background: rgba(255,255,255,0.85); border-radius: 3px; margin: 8px auto 0 auto; }
+
+        /* 密码键盘 */
+        #passcode-pad {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(25, 25, 30, 0.9); backdrop-filter: blur(40px);
+            z-index: 600; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; color: #fff;
+        }
+        .passcode-key {
+            width: 74px; height: 74px; border-radius: 50%; background: rgba(255, 255, 255, 0.12);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: background 0.2s;
+        }
+        .passcode-key:active { background: rgba(255, 255, 255, 0.3); }
+
+        /* 主屏幕 */
+        #home-screen {
+            background-color: #0f172a; background-size: cover; background-position: center;
+            justify-content: space-between; padding: 44px 16px 14px 16px; z-index: 400; display: none;
+        }
+        .widgets-area { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .widget {
+            background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(25px);
+            border-radius: 22px; padding: 14px; color: #fff; border: 1px solid rgba(255,255,255,0.2);
+        }
+        .app-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px 10px; padding: 4px 2px; }
+        .app-item { display: flex; flex-direction: column; align-items: center; cursor: pointer; position: relative; }
+        .app-icon {
+            width: 60px; height: 60px; border-radius: 14px; display: flex; justify-content: center; align-items: center;
+            font-size: 26px; position: relative; box-shadow: 0 6px 16px rgba(0,0,0,0.35); color: #fff; overflow: hidden; background-size: cover; background-position: center;
+        }
+        .app-name { font-size: 11px; color: #fff; margin-top: 5px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); font-weight: 500; }
+        .badge {
+            position: absolute; top: -4px; right: -4px; background: #ff3b30; color: #fff;
+            font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 10px; border: 2px solid #000;
+        }
+        .dock {
+            background: rgba(255, 255, 255, 0.22); backdrop-filter: blur(30px); border-radius: 30px;
+            padding: 10px 14px; display: flex; justify-content: space-around; align-items: center; border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* 内部 App 窗口 */
+        .app-window {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #fff; color: #000; z-index: 700; display: flex; flex-direction: column;
+            transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .app-window.active { transform: translateY(0); }
+        .universal-home {
+            position: absolute; top: 48px; left: 14px; z-index: 1600; width: 34px; height: 34px;
+            display:flex; align-items:center; justify-content:center; border-radius:50%;
+            background:rgba(30,30,32,.58); color:#fff; border:1px solid rgba(255,255,255,.24);
+            backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); font-size:17px; cursor:pointer;
+            box-shadow:0 2px 10px rgba(0,0,0,.12);
+        }
+        .weather-search-input { flex:1; min-width:0; border:0; outline:0; color:#fff; background:transparent; font:inherit; }
+        .weather-city-card { min-height:112px; border-radius:18px; padding:13px 16px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 4px 15px rgba(0,0,0,.22); }
+        .weather-city-card:active { transform:scale(.985); }
+        .weather-mini { font-size:12px; opacity:.82; margin-top:4px; }
+        .weather-city-temp { font-size:36px; font-weight:300; text-align:right; }
+        .weather-list-scroll { display:flex; flex-direction:column; gap:10px; padding-bottom:30px; overflow:auto; }
+        .app-header {
+            height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px;
+            border-bottom: 1px solid #e5e5ea; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
+            padding-top: 12px; font-weight: 600; font-size: 16px; flex-shrink: 0;
+        }
+        .nav-btn { background: #f0f0f5; color: #007aff; padding: 6px 12px; border-radius: 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .close-btn { background: #f0f0f5; color: #ff3b30; padding: 6px 12px; border-radius: 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .app-body { flex: 1; overflow-y: auto; background: #f7f7f8; }
+
+        /* 备忘录样式（图4-6样式：淡黄色圆角卡片、左侧黄色边框） */
+        .memo-card {
+            background: #fffdf0; border-radius: 16px; padding: 14px 16px; margin-bottom: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 5px solid #ffcc00; cursor: pointer;
+        }
+        .memo-title { font-weight: 700; font-size: 15px; color: #111; margin-bottom: 4px; }
+        .memo-date { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 6px; }
+        .memo-content { font-size: 13.5px; color: #333; line-height: 1.45; }
+        .todo-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13.5px; cursor: pointer; }
+        .todo-circle { width: 16px; height: 16px; border: 2px solid #ff9500; border-radius: 50%; display: inline-flex; justify-content: center; align-items: center; font-size: 10px; color: transparent; }
+        .todo-item.completed .todo-circle { background: #ff9500; color: #fff; }
+        .todo-item.completed span { text-decoration: line-through; color: #888; }
+        /* 仿 iOS 备忘录列表：白色分组卡片、细分割线、置顶分区 */
+        .notes-body { background:#f2f2f7 !important; color:#111; padding-bottom:26px !important; }
+        .notes-title { font-size:28px; font-weight:800; letter-spacing:-.7px; margin:12px 0 18px; }
+        .notes-search { background:#e5e5ea; color:#777; border-radius:12px; padding:10px 13px; font-size:14px; margin-bottom:22px; }
+        .notes-section-label { color:#929298; font-size:12px; font-weight:700; margin:0 0 9px 5px; }
+        .notes-lower-label { margin-top:22px; }
+        .notes-group { background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.025); }
+        .notes-row { position:relative; padding:13px 15px 12px; min-height:68px; background:#fff; cursor:pointer; }
+        .notes-row-title { color:#171717; font-size:15px; font-weight:700; line-height:1.35; margin-bottom:4px; }
+        .notes-row-preview { color:#85858b; font-size:12.5px; line-height:1.45; padding-right:4px; }
+        .notes-row-date { color:#a0a0a5; font-size:10.5px; margin-top:4px; }
+        .notes-divider { height:1px; background:#d9d9de; margin-left:15px; }
+        .notes-regular .notes-row { min-height:65px; }
+        .notes-footer { color:#888; font-size:11px; text-align:center; padding:18px 0 8px; }
+        @media (max-height:700px) { #lock-screen { padding-top:92px; } .lock-time { font-size:68px; } #lock-screen .lock-notification { margin-top:20px; } }
+
+        /* KakaoTalk 泡泡 */
+        .kakaotalk-app { background: #bac7d3; height: 100%; display: flex; flex-direction: column; }
+        .chat-bubble-row { display: flex; margin: 6px 12px; gap: 8px; align-items: flex-end; }
+        .chat-bubble-row.my { justify-content: flex-end; }
+        .chat-avatar { width: 38px; height: 38px; border-radius: 14px; object-fit: cover; background: #ddd; }
+        .chat-content-box { max-width: 72%; display: flex; flex-direction: column; }
+        .chat-bubble { padding: 10px 14px; border-radius: 16px; font-size: 13.5px; line-height: 1.4; word-break: break-all; }
+        .chat-bubble.other { background: #fff; color: #111; border-top-left-radius: 4px; }
+        .chat-bubble.my { background: #fee500; color: #111; border-top-right-radius: 4px; }
+        .trans-text { font-size: 12px; color: #555; margin-top: 3px; background: rgba(0,0,0,0.04); padding: 4px 8px; border-radius: 6px; }
+        .chat-meta { font-size: 10.5px; color: #444; margin-top: 2px; align-self: flex-end; }
+
+        /* Apple 系统字体：iPhone/iPad 优先使用系统 San Francisco 字体 */
+        html, body, button, input, textarea, select { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif !important; }
+        .brand-icon img { display:block; width:64%; height:64%; object-fit:contain; }
+        .maps-searchbar { display:flex; align-items:center; gap:9px; margin:12px 12px 8px; padding:9px 11px; background:#f1f3f4; border-radius:13px; color:#222; flex-shrink:0; }
+        .maps-searchbar input { flex:1; min-width:0; border:0; outline:0; background:transparent; color:#202124; font-size:15px; }
+        .maps-searchbar button { border:0; border-radius:9px; background:#4285f4; color:#fff; padding:8px 10px; font-size:13px; font-weight:600; }
+        .maps-quick-search { display:flex; gap:7px; overflow-x:auto; padding:0 12px 10px; flex-shrink:0; }
+        .maps-quick-search button { white-space:nowrap; border:1px solid #dadce0; background:#fff; color:#3c4043; padding:7px 10px; border-radius:18px; font-size:12px; }
+        #app-maps iframe { width:100%; flex:1; min-height:240px; border:0; background:#e8eaed; }
+        .maps-footer { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); background:#fff; color:#777; font-size:10px; flex-shrink:0; }
+        .maps-footer a { color:#4285f4; text-decoration:none; font-size:11px; }
+        #app-gmail .app-body { padding:8px !important; }
+        #app-gmail .gmail-inbox-title { padding:8px 8px 10px; font-size:20px; font-weight:700; color:#202124; }
+        #app-gmail .gmail-email-card { position:relative; background:#fff; border-bottom:1px solid #e8eaed; padding:11px 12px 10px; margin:0; min-height:76px; max-height:76px; overflow:hidden; border-radius:0; box-shadow:none; border-left:0 !important; cursor:pointer; transition:max-height .22s ease; }
+        #app-gmail .gmail-email-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:transparent; }
+        #app-gmail .gmail-email-card.unread .gmail-sender, #app-gmail .gmail-email-card.unread .gmail-subject { font-weight:700 !important; }
+        #app-gmail .gmail-email-card.expanded { max-height:1200px; overflow:visible; padding-bottom:14px; background:#fff; }
+        #app-gmail .gmail-sender-row { display:flex; justify-content:space-between; gap:8px; font-size:12px !important; color:#5f6368 !important; margin-bottom:5px !important; }
+        #app-gmail .gmail-sender { color:#202124; font-size:14px; font-weight:500; }
+        #app-gmail .gmail-subject { font-size:14px !important; line-height:1.35; font-weight:700; color:#202124 !important; }
+        #app-gmail .gmail-subject span { font-weight:400 !important; }
+        #app-gmail .gmail-message-body { font-size:13px !important; font-weight:400 !important; line-height:1.5; color:#3c4043 !important; }
+        #app-gmail .gmail-message-body * { font-weight:400; }
+        #app-gmail .gmail-message-body b { font-weight:600; }
+        #app-gmail .gmail-tap-hint { font-size:10px; color:#80868b; margin-top:5px; }
+
+    </style>
+</head>
+<body>
+<div class="phone-case">
+    <!-- 顶部状态栏与灵动岛 -->
+    <div class="status-bar">
+        <div id="status-time" style="font-weight: 600;">02:34</div>
+        <div class="dynamic-island" id="dynamic-island" onclick="toggleMusicApp()">
+            <span id="di-icon">🎵</span>
+            <span id="di-text" style="font-size:10px; opacity:0.9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px;">Idle</span>
+        </div>
+        <div class="status-right">
+            <div class="ios-signal" aria-label="信号强度"><span></span><span></span><span></span><span></span></div>
+            <span class="status-5g">5G</span>
+            <div class="ios-battery"><div class="ios-battery-inner"></div></div>
+            <span class="status-battery-percent">84%</span>
+        </div>
+    </div>
+
+       <!-- 锁屏 -->
+    <div class="screen" id="lock-screen" style="background-image: url('image_17.jpg'); background-size: cover; background-position: center;">
+        <div class="lock-content">
+            <div class="lock-date" id="lock-date-text">10月22日 星期四</div>
+            <div class="lock-time" id="lock-time-text">02:34</div>
+        </div>
+        
+        <!-- 锁屏通知卡片（显示第一条消息，点击可解锁） -->
+        <div class="lock-notification" id="lock-notif-box" onclick="showPasscode()" style="cursor: pointer;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 13px;">
+                    <span style="background: #25d366; width: 16px; height: 16px; border-radius: 50%; display: inline-flex; justify-content: center; align-items: center; font-size: 10px; color: #fff;">💬</span>
+                    <b>🐑</b>
+                </div>
+                <span style="font-size: 11px; opacity: 0.7;">现在</span>
+            </div>
+            <div id="lock-msg-text" style="font-size: 14px; font-weight: 500;">내 珍珍韩振 지금 뭐해</div>
+        </div>
+
+        <!-- 底部上滑解锁提示区 -->
+        <div class="lock-swipe-area" onclick="showPasscode()">
+            <div class="swipe-hint">向上滑动以解锁</div>
+            <div class="swipe-up-bar"></div>
+        </div>
+    </div>
+
+    <!-- 密码键盘 -->
+    <div id="passcode-pad">
+        <div style="font-size: 16px; font-weight: 500; margin-bottom: 24px;">向上轻扫使用面容 ID 或输入密码</div>
+        <div style="display: flex; gap: 14px; margin-bottom: 40px;" id="pin-dots">
+            <div style="width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid #fff;"></div>
+            <div style="width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid #fff;"></div>
+            <div style="width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid #fff;"></div>
+            <div style="width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid #fff;"></div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; width: 280px;">
+            <div class="passcode-key" onclick="pressPin('1')"><span style="font-size: 24px; font-weight: 600;">1</span><span style="font-size: 9px; opacity: 0.6;">ABC</span></div>
+            <div class="passcode-key" onclick="pressPin('2')"><span style="font-size: 24px; font-weight: 600;">2</span><span style="font-size: 9px; opacity: 0.6;">DEF</span></div>
+            <div class="passcode-key" onclick="pressPin('3')"><span style="font-size: 24px; font-weight: 600;">3</span><span style="font-size: 9px; opacity: 0.6;">GHI</span></div>
+            <div class="passcode-key" onclick="pressPin('4')"><span style="font-size: 24px; font-weight: 600;">4</span><span style="font-size: 9px; opacity: 0.6;">JKL</span></div>
+            <div class="passcode-key" onclick="pressPin('5')"><span style="font-size: 24px; font-weight: 600;">5</span><span style="font-size: 9px; opacity: 0.6;">MNO</span></div>
+            <div class="passcode-key" onclick="pressPin('6')"><span style="font-size: 24px; font-weight: 600;">6</span><span style="font-size: 9px; opacity: 0.6;">PQR</span></div>
+            <div class="passcode-key" onclick="pressPin('7')"><span style="font-size: 24px; font-weight: 600;">7</span><span style="font-size: 9px; opacity: 0.6;">STU</span></div>
+            <div class="passcode-key" onclick="pressPin('8')"><span style="font-size: 24px; font-weight: 600;">8</span><span style="font-size: 9px; opacity: 0.6;">VWX</span></div>
+            <div class="passcode-key" onclick="pressPin('9')"><span style="font-size: 24px; font-weight: 600;">9</span><span style="font-size: 9px; opacity: 0.6;">YZ</span></div>
+            <div></div>
+            <div class="passcode-key" onclick="pressPin('0')"><span style="font-size: 24px; font-weight: 600;">0</span></div>
+            <div style="display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer;" onclick="cancelPasscode()">取消</div>
+        </div>
+    </div>
+
+    <!-- 主屏幕 -->
+    <div class="screen" id="home-screen" style="background-image: url('image_18.jpg'); background-size: cover; background-position: center;">
+        <div class="widgets-area">
+            <div class="widget" style="display: flex; flex-direction: column; justify-content: space-between; height: 115px;">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #ff3b30; font-weight: 600;">
+                    <span>星期四</span><span style="color:#fff;">22</span>
+                </div>
+                <div>
+                    <div style="font-size: 13px; font-weight: 700;">延世大学课程</div>
+                    <div style="font-size: 11px; opacity: 0.7;">近现代史微视频</div>
+                </div>
+            </div>
+            <div class="widget" style="background: #007aff; display: flex; flex-direction: column; justify-content: space-between; height: 115px; cursor: pointer;" onclick="openApp('weather')">
+                <div style="display: flex; justify-content: space-between; font-size: 13px;"><span>首尔 ↗</span><span>☀️ 18°</span></div>
+                <div><div style="font-size: 26px; font-weight: 300;">15° / 21°</div><div style="font-size: 11px; opacity: 0.9;">大部分晴朗</div></div>
+            </div>
+        </div>
+        <div class="app-grid">
+            <div class="app-item" onclick="openApp('notes')"><div class="app-icon" style="background: #fff; color: #ff9500; font-size: 26px;">📝</div><div class="app-name">备忘录</div><div class="badge">1</div></div>
+            <div class="app-item" onclick="openApp('photos')"><div class="app-icon" style="background: #fff; background-image: url('image_25.jpg');"></div><div class="app-name">相册</div></div>
+            <div class="app-item" onclick="openApp('threads')"><div class="app-icon brand-icon" style="background:#000;"><img alt="Threads" src="https://cdn.simpleicons.org/threads/FFFFFF"></div><div class="app-name">Threads</div><div class="badge">3</div></div>
+            <div class="app-item" onclick="openApp('x')"><div class="app-icon brand-icon" style="background:#000;"><img alt="X" src="https://cdn.simpleicons.org/x/FFFFFF"></div><div class="app-name">X</div><div class="badge">5</div></div>
+            <div class="app-item" onclick="openApp('spotify')"><div class="app-icon brand-icon" style="background:#000;"><img alt="Spotify" src="https://cdn.simpleicons.org/spotify/1ED760"></div><div class="app-name">Spotify</div></div>
+            <div class="app-item" onclick="openApp('kakaotalk')"><div class="app-icon brand-icon" style="background:#FEE500;"><img alt="KakaoTalk" src="https://cdn.simpleicons.org/kakaotalk/3C1E1E"></div><div class="app-name">KakaoTalk</div><div class="badge">4</div></div>
+            <div class="app-item" onclick="openApp('gmail')"><div class="app-icon brand-icon" style="background:#fff;"><img alt="Gmail" src="https://cdn.simpleicons.org/gmail/EA4335"></div><div class="app-name">Gmail</div><div class="badge">2</div></div>
+            <div class="app-item" onclick="openApp('instagram')"><div class="app-icon brand-icon" style="background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045);"><img alt="Instagram" src="https://cdn.simpleicons.org/instagram/FFFFFF"></div><div class="app-name">Instagram</div></div>
+            <div class="app-item" onclick="openApp('youtube')"><div class="app-icon brand-icon" style="background:#FF0033;"><img alt="YouTube" src="https://cdn.simpleicons.org/youtube/FFFFFF"></div><div class="app-name">YouTube</div></div>
+            <div class="app-item" onclick="openApp('maps')"><div class="app-icon" style="background: #e5e5ea; background-image: url('image_19.jpg');"></div><div class="app-name">地图</div></div>
+            <div class="app-item" onclick="openApp('clock')"><div class="app-icon" style="background: #000; color: #fff; font-size: 24px;">⏰</div><div class="app-name">时钟</div></div>
+            <div class="app-item" onclick="openApp('settings')"><div class="app-icon" style="background: #8e8e93; color: #fff; font-size: 26px;">⚙️</div><div class="app-name">设置</div></div>
+        </div>
+        <div class="dock">
+            <div class="app-item" onclick="openApp('kakaotalk')"><div class="app-icon" style="width: 52px; height: 52px; background: #fee500; color:#3c1e1e; font-size:22px;">💬</div><div class="badge">4</div></div>
+            <div class="app-item" onclick="openApp('safari')"><div class="app-icon" style="width: 52px; height: 52px; background: linear-gradient(#1e90ff, #00bfff); color: #fff; font-size: 24px;">🌐</div></div>
+            <div class="app-item" onclick="openApp('notes')"><div class="app-icon" style="width: 52px; height: 52px; background: #fff; color:#ff9500; font-size:22px;">📝</div></div>
+            <div class="app-item" onclick="openApp('spotify')"><div class="app-icon" style="width: 52px; height: 52px; background: #000; color: #1ed760; font-size: 22px;">🎵</div></div>
+        </div>
+    </div>
+    <!-- 内部 App：Spotify 音乐播放器 -->
+    <div class="app-window" id="app-spotify">
+        <div class="app-header" style="background:#121212; color:#fff; border-bottom:1px solid #222;">
+            <div class="nav-btn" style="background:#282828; color:#1ed760;" onclick="closeApp('spotify')">‹ 主屏幕</div>
+            <span style="font-weight:700;">Spotify</span>
+            <div class="close-btn" style="background:#282828; color:#ff3b30;" onclick="closeApp('spotify')">✕</div>
+        </div>
+        <div class="app-body" style="background: #121212; color: #fff; padding: 20px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <div style="font-size: 22px; font-weight: 700; margin-bottom: 16px;">正在播放</div>
+                <div id="album-art" style="width: 100%; aspect-ratio: 1; background: #282828; border-radius: 16px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    <img id="album-art-image" src="image_6.jpg" alt="专辑封面" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none';document.getElementById('album-art-fallback').style.display='flex';">
+                    <div id="album-art-fallback" style="display:none;width:100%;height:100%;justify-content:center;align-items:center;font-size:64px;">🎧</div>
+                </div>
+                <div id="song-title" style="font-size: 20px; font-weight: 700; margin-bottom: 4px;">太聪明</div>
+                <div id="song-artist" style="font-size: 14px; color: #b3b3b3; margin-bottom: 20px;">陈粒</div>
+                <div style="width: 100%; height: 4px; background: #404040; border-radius: 2px; margin-bottom: 20px;"><div style="width: 30%; height: 100%; background: #1ed760; border-radius: 2px;"></div></div>
+            </div>
+            <div>
+                <div style="font-size: 13px; color: #b3b3b3; margin-bottom: 10px;">点击切换歌曲（同步灵动岛）</div>
+                <div style="display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto;">
+                    <div onclick="playSong('太聪明', '陈粒', '🇨🇳', 'image_6.jpg')" style="display:flex;align-items:center;gap:12px;background:#282828;padding:8px 10px;border-radius:10px;cursor:pointer;font-size:14px;"><img src="image_6.jpg" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none';"><span>太聪明 <span style="color:#b3b3b3;">- 陈粒</span></span></div>
+                    <div onclick="playSong('等你下课', '周杰伦', '🇨🇳', 'image_7.jpg')" style="display:flex;align-items:center;gap:12px;background:#282828;padding:8px 10px;border-radius:10px;cursor:pointer;font-size:14px;"><img src="image_7.jpg" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none';"><span>等你下课 <span style="color:#b3b3b3;">- 周杰伦</span></span></div>
+                    <div onclick="playSong('我在纽约打电话给你', '陈粒', '🇨🇳', 'image_8.jpg')" style="display:flex;align-items:center;gap:12px;background:#282828;padding:8px 10px;border-radius:10px;cursor:pointer;font-size:14px;"><img src="image_8.jpg" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none';"><span>我在纽约打电话给你 <span style="color:#b3b3b3;">- 陈粒</span></span></div>
+                    <div onclick="playSong('Angel', 'FIN.K.L', '🇰🇷', 'image_9.JPG')" style="display:flex;align-items:center;gap:12px;background:#282828;padding:8px 10px;border-radius:10px;cursor:pointer;font-size:14px;"><img src="image_9.JPG" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none';"><span>Angel <span style="color:#b3b3b3;">- FIN.K.L</span></span></div>
+                    <div onclick="playSong('疑心病', '陈粒', '🇨🇳', 'image_10.jpg')" style="display:flex;align-items:center;gap:12px;background:#282828;padding:8px 10px;border-radius:10px;cursor:pointer;font-size:14px;"><img src="image_10.jpg" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none';"><span>疑心病 <span style="color:#b3b3b3;">- 陈粒</span></span></div>
+                    <div onclick="playSong('收藏的歌', '我的歌单', '🎧', 'image_11.JPG')" style="display:flex;align-items:center;gap:12px;background:#282828;padding:8px 10px;border-radius:10px;cursor:pointer;font-size:14px;"><img src="image_11.JPG" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none';"><span>收藏的歌 <span style="color:#b3b3b3;">- 我的歌单</span></span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 内部 App：备忘录（iOS 备忘录列表样式） -->
+    <div class="app-window" id="app-notes">
+        <div class="app-header">
+            <div class="nav-btn" onclick="closeApp('notes')">‹ 主屏幕</div>
+            <span style="font-weight:700;">备忘录</span>
+            <div class="close-btn" onclick="closeApp('notes')">✕</div>
+        </div>
+        <div class="app-body notes-body" style="padding: 16px;">
+            <div class="notes-title">备忘录</div>
+            <div class="notes-search">⌕ 搜索备忘录</div>
+            <div class="notes-section-label">📌 置顶</div>
+            <div class="notes-group">
+                <div class="notes-row">
+                    <div class="notes-row-title">待办</div>
+                    <div class="notes-row-preview">10.25 近现代史纲要 微视频 · 10.29 现代教育技术 说课 · 11.3 形势与政策 论文……</div>
+                    <div class="notes-row-date">今天</div>
+                </div>
+                <div class="notes-divider"></div>
+                <div class="notes-row">
+                    <div class="notes-row-title">文案预备役</div>
+                    <div class="notes-row-preview">一颗心，一个人，一个世纪。 Eternity love 拥抱你 算拥抱宇宙吗……</div>
+                    <div class="notes-row-date">昨天</div>
+                </div>
+            </div>
+            <div class="notes-section-label notes-lower-label">备忘录</div>
+            <div class="notes-group notes-regular">
+                <div class="notes-row"><div class="notes-row-title">时间</div><div class="notes-row-preview">昨天 周一三五 艺术馆312 / 周二四 下午练习</div><div class="notes-row-date">昨天</div></div>
+                <div class="notes-divider"></div>
+                <div class="notes-row"><div class="notes-row-title">吃的</div><div class="notes-row-preview">星期四 炒年糕、奶油面包 / 不太喜欢昌亿年糕</div><div class="notes-row-date">星期四</div></div>
+                <div class="notes-divider"></div>
+                <div class="notes-row"><div class="notes-row-title">转角</div><div class="notes-row-preview">昨天 奶油甜点 / 靠窗座位</div><div class="notes-row-date">昨天</div></div>
+                <div class="notes-divider"></div>
+                <div class="notes-row"><div class="notes-row-title">其他</div><div class="notes-row-preview">2026/10/5 11月21日 / 口哨 / 嗓子保养</div><div class="notes-row-date">10月5日</div></div>
+                <div class="notes-divider"></div>
+                <div class="notes-row"><div class="notes-row-title">期中考试</div><div class="notes-row-preview">星期一 运动心理学 第3～6周</div><div class="notes-row-date">9月28日</div></div>
+                <div class="notes-divider"></div>
+                <div class="notes-row"><div class="notes-row-title">作业</div><div class="notes-row-preview">2026/10/10 通识课发表资料 周五前</div><div class="notes-row-date">10月10日</div></div>
+                <div class="notes-divider"></div>
+                <div class="notes-row"><div class="notes-row-title">购物</div><div class="notes-row-preview">14:14 鸡蛋 / 矿泉水 / 洗涤剂 / 纸巾</div><div class="notes-row-date">今天</div></div>
+                <div class="notes-divider"></div>
+                <div class="notes-row"><div class="notes-row-title">今日晴</div><div class="notes-row-preview">春游踏青，拍了好多合照。阳光正好，他就站在木桥旁边回头笑……</div><div class="notes-row-date">4月5日</div></div>
+                <div class="notes-divider"></div>
+                <div class="notes-row"><div class="notes-row-title">今日雨</div><div class="notes-row-preview">今天因为一点小事拌了几句嘴，虽然晚上就好了，但还是有点心疼。</div><div class="notes-row-date">3月20日</div></div>
+                <div class="notes-divider"></div>
+                <div class="notes-row"><div class="notes-row-title">今日晴</div><div class="notes-row-preview">新学期开学，大二了。我们选了同一门通识课，上课时偷偷在桌子底下牵手。</div><div class="notes-row-date">3月1日</div></div>
+                <div class="notes-divider"></div>
+                <div class="notes-row"><div class="notes-row-title">今日晴</div><div class="notes-row-preview">情人节送了他亲手织的围巾，虽然针脚有点歪，但他笑得很开心。</div><div class="notes-row-date">2月14日</div></div>
+                <div class="notes-divider"></div>
+                <div class="notes-row"><div class="notes-row-title">今日晴</div><div class="notes-row-preview">跨年夜的钟声敲响时，我们在汉江边看烟花。他突然握住了我的手……</div><div class="notes-row-date">2025年12月31日</div></div>
+                <div class="notes-divider"></div>
+                <div class="notes-row"><div class="notes-row-title">今日阴</div><div class="notes-row-preview">天气变冷了，他今天穿了一件灰色的连帽衫，看起来格外乖巧。</div><div class="notes-row-date">2025年11月28日</div></div>
+                <div class="notes-divider"></div>
+                <div class="notes-row"><div class="notes-row-title">今日晴</div><div class="notes-row-preview">今天在图书馆又看到他，坐在靠窗的位置，阳光洒在他侧脸。</div><div class="notes-row-date">2025年10月4日</div></div>
+            </div>
+            <div class="notes-footer">16个备忘录</div>
+        </div>
+    </div>
+
+    <!-- 内部 App：KakaoTalk（含 6 人群聊与私聊，严格韩中对照） -->
+    <div class="app-window" id="app-kakaotalk">
+        <div class="kakaotalk-app">
+            <div class="app-header" style="background: #bac7d3; border-bottom: 0.5px solid rgba(0,0,0,0.1);">
+                <div class="nav-btn" style="background:rgba(255,255,255,0.5); color:#000;" onclick="closeApp('kakaotalk')">‹ 返回</div>
+                <span style="font-weight:700;">대학 동기 & 연습생 6인방 (6人群)</span>
+                <div class="close-btn" style="background:rgba(255,255,255,0.5); color:#ff3b30;" onclick="closeApp('kakaotalk')">✕</div>
+            </div>
+            <div class="app-body" style="background: #bac7d3; padding: 12px 0;">
+                <!-- 申惟 -->
+                <div class="chat-bubble-row">
+                    <img src="image_7.jpg" class="chat-avatar">
+                    <div class="chat-content-box">
+                        <div style="font-size: 11px; color: #333; margin-bottom: 2px;">申惟</div>
+                        <div class="chat-bubble other">다들 오늘 연습실 몇시에 와요?<div class="trans-text">大家今天几点来练习室？</div></div>
+                        <div class="chat-meta">19:40</div>
+                    </div>
+                </div>
+                <!-- 崔英宰 -->
+                <div class="chat-bubble-row">
+                    <div class="chat-content-box">
+                        <div style="font-size: 11px; color: #333; margin-bottom: 2px;">崔英宰</div>
+                        <div class="chat-bubble other">난 8시쯤? 저녁 먹고 갈게요.<div class="trans-text">我8点左右？吃过晚饭去。</div></div>
+                        <div class="chat-meta">19:41</div>
+                    </div>
+                </div>
+                <!-- 金道勋 -->
+                <div class="chat-bubble-row">
+                    <div class="chat-content-box">
+                        <div style="font-size: 11px; color: #333; margin-bottom: 2px;">金道勋</div>
+                        <div class="chat-bubble other">오늘 과제 진짜 많네... 흑흑<div class="trans-text">今天作业真的好is多啊... 呜呜</div></div>
+                        <div class="chat-meta">19:42</div>
+                    </div>
+                </div>
+                <!-- 韩志薰 -->
+                <div class="chat-bubble-row">
+                    <div class="chat-content-box">
+                        <div style="font-size: 11px; color: #333; margin-bottom: 2px;">韩志薰</div>
+                        <div class="chat-bubble other">도훈이 형 힘내세요 ㅋㅋ<div class="trans-text">道勋哥加油哈哈</div></div>
+                        <div class="chat-meta">19:43</div>
+                    </div>
+                </div>
+                <!-- 李炅潣 -->
+                <div class="chat-bubble-row">
+                    <div class="chat-content-box">
+                        <div style="font-size: 11px; color: #333; margin-bottom: 2px;">李炅潣</div>
+                        <div class="chat-bubble other">이따 음료수 谁买？<div class="trans-text">待会儿饮料谁买？</div></div>
+                        <div class="chat-meta">19:44</div>
+                    </div>
+                </div>
+                <!-- 我 -->
+                <div class="chat-bubble-row my">
+                    <div class="chat-content-box" style="align-items: flex-end;">
+                        <div class="chat-bubble my">내가 사갈게요. 조금만 이따 봐요!<div class="trans-text">我买过去吧。一会儿见！</div></div>
+                        <div class="chat-meta">19:45 · 已读</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 其它应用占位窗口 -->
+        <!-- Threads 模拟界面：为原创模拟器 UI，非官方客户端，不保证与真实 App 每个版本完全一致。 -->
+    <div class="app-window" id="app-threads">
+        <div class="app-header">
+            <div class="nav-btn" onclick="closeApp('threads')">‹ 主屏幕</div>
+            <span style="font-weight:700;">Threads</span>
+            <div class="close-btn" onclick="closeApp('threads')">✕</div>
+        </div>
+        <div class="app-body" style="background: #000; color: #fff; padding: 16px; overflow-y: auto;">
+            <div style="font-size: 24px; font-weight: 800; margin-bottom: 16px;">Threads 广场</div>
+            
+            <!-- 发帖输入框 -->
+            <div style="background: #111; border: 1px solid #333; border-radius: 12px; padding: 12px; margin-bottom: 20px;">
+                <textarea id="threads-input" placeholder="分享你的新鲜事或碎碎念 (限500字)..." style="width: 100%; background: transparent; border: none; color: #fff; resize: none; outline: none; font-size: 14px; height: 60px;"></textarea>
+                <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+                    <button onclick="publishPost('threads')" style="background: #fff; color: #000; border: none; padding: 6px 16px; border-radius: 20px; font-weight: 600; cursor: pointer;">发布</button>
+                </div>
+            </div>
+
+            <!-- 动态流容器 -->
+            <div id="threads-feed" style="display: flex; flex-direction: column; gap: 16px; padding-bottom: 40px;">
+                <div style="border-bottom: 1px solid #222; padding-bottom: 14px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><div style="width: 32px; height: 32px; border-radius: 50%; background: #444;"></div><div><b>starlight_05</b><div style="font-size: 11px; color: #888;">15分钟前</div></div></div>
+                    <div style="font-size: 13.5px; line-height: 1.4; color: #ddd;">THE VISUALS IN THIS COMEBACK?? 真的会谢，帅得我直接连夜从床上爬起来磕头 🔥😭 #Kpop #Comeback<br><span style="font-size: 12px; color: #aaa;">这次回归的视觉？？真的会谢，帅得我直接连夜从床上爬起来磕头 🔥😭</span></div>
+                    <div style="font-size: 12px; color: #888; margin-top: 8px;">❤️ 128 · 💬 32回复</div>
+                </div>
+
+                <div style="border-bottom: 1px solid #222; padding-bottom: 14px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><div style="width: 32px; height: 32px; border-radius: 50%; background: #444;"></div><div><b>yonsei_surviving</b><div style="font-size: 11px; color: #888;">45分钟前</div></div></div>
+                    <div style="font-size: 13.5px; line-height: 1.4; color: #ddd;">期末周的精神状态：跟路边的鸽子对视了三分钟，觉得它比我更有学术规划 🤡🕊️ #期末周 #大学生日常</div>
+                    <div style="font-size: 12px; color: #888; margin-top: 8px;">❤️ 256 · 💬 45回复</div>
+                </div>
+
+                <div style="border-bottom: 1px solid #222; padding-bottom: 14px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><div style="width: 32px; height: 32px; border-radius: 50%; background: #444;"></div><div><b>k_drama_addict</b><div style="font-size: 11px; color: #888;">1小时前</div></div></div>
+                    <div style="font-size: 13.5px; line-height: 1.4; color: #ddd;">kswl救命！！编剧你是懂怎么拿捏我们这种纯爱战神的，民政局我搬来了请原地结婚好吗 💍✨ #韩剧 #纯爱</div>
+                    <div style="font-size: 12px; color: #888; margin-top: 8px;">❤️ 89 · 💬 19回复</div>
+                </div>
+
+                <div style="border-bottom: 1px solid #222; padding-bottom: 14px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><div style="width: 32px; height: 32px; border-radius: 50%; background: #444;"></div><div><b>minji_archive</b><div style="font-size: 11px; color: #888;">2小时前</div></div></div>
+                    <div style="font-size: 13.5px; line-height: 1.4; color: #ddd;">why is monday already here 😭 I need 3 more days of weekend<br><span style="font-size: 12px; color: #aaa;">为什么周一已经到了 😭 我还需要三天周末</span></div>
+                    <div style="font-size: 12px; color: #888; margin-top: 8px;">❤️ 48 · 💬 12回复</div>
+                </div>
+
+                <div style="border-bottom: 1px solid #222; padding-bottom: 14px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><div style="width: 32px; height: 32px; border-radius: 50%; background: #444;"></div><div><b>fandom_queen</b><div style="font-size: 11px; color: #888;">3小时前</div></div></div>
+                    <div style="font-size: 13.5px; line-height: 1.4; color: #ddd;">家人们谁懂啊，今天绝了，生图直出这个狙击心脏的眼神是真实存在的吗... 妈妈我恋爱了 💘🔥 #饭圈日常</div>
+                    <div style="font-size: 12px; color: #888; margin-top: 8px;">❤️ 312 · 💬 67回复</div>
+                </div>
+
+                <div style="border-bottom: 1px solid #222; padding-bottom: 14px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><div style="width: 32px; height: 32px; border-radius: 50%; background: #444;"></div><div><b>study_harder</b><div style="font-size: 11px; color: #888;">5小时前</div></div></div>
+                    <div style="font-size: 13.5px; line-height: 1.4; color: #ddd;">小组作业最恶心的不是遇到猪队友，而是大家都是猪队友，最后只能由我一个人扛下所有 🫠🔪 #大学生活 #破防了</div>
+                    <div style="font-size: 12px; color: #888; margin-top: 8px;">❤️ 194 · 💬 53回复</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- X 模拟界面：为原创模拟器 UI，非官方客户端，不保证与真实 App 每个版本完全一致。 -->
+    <div class="app-window" id="app-x">
+        <div class="app-header" style="background:#000; color:#fff; border-bottom:1px solid #222;">
+            <div class="nav-btn" style="background:#222; color:#fff;" onclick="closeApp('x')">‹ 返回</div>
+            <span style="font-weight:700;">𝕏 广场</span>
+            <div class="close-btn" style="background:#222; color:#ff3b30;" onclick="closeApp('x')">✕</div>
+        </div>
+        <div class="app-body" style="background: #000; color: #fff; padding: 16px; overflow-y: auto;">
+            <div style="font-size: 20px; font-weight: 800; margin-bottom: 16px;">实时趋势与动态</div>
+            
+            <div style="background: #111; border: 1px solid #333; border-radius: 12px; padding: 12px; margin-bottom: 20px;">
+                <textarea id="x-input" placeholder="有什么新鲜事正在发生？(多语言混杂支持)..." style="width: 100%; background: transparent; border: none; color: #fff; resize: none; outline: none; font-size: 14px; height: 60px;"></textarea>
+                <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+                    <button onclick="publishPost('x')" style="background: #1d9bf0; color: #fff; border: none; padding: 6px 16px; border-radius: 20px; font-weight: 600; cursor: pointer;">发帖</button>
+                </div>
+            </div>
+
+            <div id="x-feed" style="display: flex; flex-direction: column; gap: 14px; padding-bottom: 40px;">
+                <div style="border-bottom: 1px solid #222; padding-bottom: 12px;"><div style="font-size: 12px; color: #888; margin-bottom: 2px;">@streaming_bot · 10分钟前</div><div style="font-size: 13.5px; color: #eee;">STREAM HARDER GUYS we are so close to #1!! 🚨🔥<br><span style="font-size: 12px; color: #888;">大家快去刷歌！！我们离一位只有一步之遥了！！🚨🔥</span></div></div>
+                <div style="border-bottom: 1px solid #222; padding-bottom: 12px;"><div style="font-size: 12px; color: #888; margin-bottom: 2px;">@yonsei_rant · 30分钟前</div><div style="font-size: 13.5px; color: #eee;">신촌 상권 물가 진짜 양아치 아니냐... 밥 먹기 무섭다 ㅠㅠ<br><span style="font-size: 12px; color: #888;">新村这边的物价真的抢劫呢... 吃不起饭了 ㅠㅠ</span></div></div>
+                <div style="border-bottom: 1px solid #222; padding-bottom: 12px;"><div style="font-size: 12px; color: #888; margin-bottom: 2px;">@tokyo_fangirl · 1小时前</div><div style="font-size: 13.5px; color: #eee;">ビジュアルがマジで人間じゃない、尊すぎる…しんどい 😇✨<br><span style="font-size: 12px; color: #888;">这颜值简直不是人类，太尊贵了…人没了好吗 😇✨</span></div></div>
+                <div style="border-bottom: 1px solid #222; padding-bottom: 12px;"><div style="font-size: 12px; color: #888; margin-bottom: 2px;">@yonsei_student_bot · 2小时前</div><div style="font-size: 13.5px; color: #eee;">why am i awake at 3am AGAIN 😭<br><span style="font-size: 12px; color: #888;">为什么我又凌晨三点还没睡 😭</span></div></div>
+                <div style="border-bottom: 1px solid #222; padding-bottom: 12px;"><div style="font-size: 12px; color: #888; margin-bottom: 2px;">@idols_out_of_context · 4小时前</div><div style="font-size: 13.5px; color: #eee;">not him tripping over nothing during the encore 💀 bro has negative balance<br><span style="font-size: 12px; color: #eee;">笑死，安可环节平地摔可还行 💀 哥们儿是一点平衡感都没有</span></div></div>
+                <div style="border-bottom: 1px solid #222; padding-bottom: 12px;"><div style="font-size: 12px; color: #888; margin-bottom: 2px;">@campus_vibe · 5小时前</div><div style="font-size: 13.5px; color: #eee;">신촌 연대 앞 카페 아메리카노 맛집 추천 받습니다 ☕️<br><span style="font-size: 12px; color: #888;">求推荐新村延大门前好喝的美式咖啡馆 ☕️</span></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instagram 模拟界面：为原创模拟器 UI，非官方客户端，不保证与真实 App 每个版本完全一致。 -->
+    <div class="app-window" id="app-instagram">
+        <div class="app-header">
+            <div class="nav-btn" onclick="closeApp('instagram')">‹ 主屏幕</div>
+            <span style="font-weight:700;">Instagram</span>
+            <div class="close-btn" onclick="closeApp('instagram')">✕</div>
+        </div>
+        <div class="app-body" style="background: #000; color: #fff; padding: 0; overflow-y: auto;">
+            <div style="display: flex; gap: 12px; padding: 12px; border-bottom: 1px solid #222; overflow-x: auto;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;"><div style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid #fd5949; padding: 2px;"><div style="width: 100%; height: 100%; border-radius: 50%; background: #444;"></div></div><span style="font-size: 11px; color: #ccc;">suji_98</span></div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;"><div style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid #fd5949; padding: 2px;"><div style="width: 100%; height: 100%; border-radius: 50%; background: #444;"></div></div><span style="font-size: 11px; color: #ccc;">campus_life</span></div>
+            </div>
+            <div style="padding: 12px; background: #111; border-bottom: 1px solid #222;">
+                <textarea id="ins-input" placeholder="分享照片文字或生活瞬间..." style="width: 100%; background: transparent; border: none; color: #fff; resize: none; outline: none; font-size: 14px; height: 50px;"></textarea>
+                <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+                    <button onclick="publishPost('instagram')" style="background: linear-gradient(45deg, #f09433, #bc1888); color: #fff; border: none; padding: 5px 14px; border-radius: 16px; font-weight: 600; cursor: pointer;">分享动态</button>
+                </div>
+            </div>
+            <div id="ins-feed" style="display: flex; flex-direction: column; gap: 20px; padding-bottom: 40px;">
+                <div style="border-bottom: 1px solid #222; padding-bottom: 12px;"><div style="display: flex; align-items: center; gap: 8px; padding: 0 12px 8px 12px;"><div style="width: 32px; height: 32px; border-radius: 50%; background: #444;"></div><b style="font-size: 13px;">seoul_cafe_hopper</b></div><div style="width: 100%; aspect-ratio: 1; background: #222; display: flex; justify-content: center; align-items: center; color: #888;">☕ [咖啡馆角落光影照片]</div><div style="padding: 10px 12px; font-size: 13px;"><b>seoul_cafe_hopper</b> a little reset ☁️ (周末的咖啡馆时光)</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 内部 App：YouTube (视频推荐) -->
+    <div class="app-window" id="app-youtube">
+        <div class="app-header">
+            <div class="nav-btn" onclick="closeApp('youtube')">‹ 返回</div>
+            <span style="color:#ff0000; font-weight:700;">YouTube</span>
+            <div class="close-btn" onclick="closeApp('youtube')">✕</div>
+        </div>
+        <div class="app-body" style="background: #111; color: #fff; padding: 12px; overflow-y: auto;">
+            <div style="font-size: 18px; font-weight: 700; margin-bottom: 12px;">推荐视频</div>
+            <div style="background: #222; border-radius: 12px; padding: 12px; margin-bottom: 16px;">
+                <textarea id="yt-input" placeholder="发布视频动态或分享链接..." style="width: 100%; background: transparent; border: none; color: #fff; resize: none; outline: none; font-size: 14px; height: 50px;"></textarea>
+                <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+                    <button onclick="publishPost('youtube')" style="background: #ff0000; color: #fff; border: none; padding: 5px 14px; border-radius: 16px; font-weight: 600; cursor: pointer;">发布视频动态</button>
+                </div>
+            </div>
+            <div id="yt-feed" style="display: flex; flex-direction: column; gap: 16px; padding-bottom: 40px;">
+                <div style="background: #222; border-radius: 12px; overflow: hidden;"><div style="width: 100%; aspect-ratio: 16/9; background: #333; display: flex; justify-content: center; align-items: center; color: #888;">▶️ 延世大学 Vlog</div><div style="padding: 10px;"><div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">【Vlog】在延世大学度过的平静秋日，图书馆与咖啡香</div><div style="font-size: 11.5px; color: #aaa;">Yonsei Vlogger · 12万次观看 · 2天前</div></div></div>
+            </div>
+        </div>
+    </div>
+    <div class="app-window" id="app-photos"><div class="app-header"><div class="nav-btn" onclick="closeApp('photos')">‹ 返回</div><b>照片</b><div class="close-btn" onclick="closeApp('photos')">✕</div></div><div class="app-body" style="padding:10px;background:#fff;"><div style="font-size:23px;font-weight:700;margin:4px 2px 12px;">图库</div><div id="photo-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;"><img src="image_6.jpg" alt="照片1" onclick="openPhoto(this)" style="width:100%;aspect-ratio:1;object-fit:cover;cursor:pointer;"><img src="image_7.jpg" alt="照片2" onclick="openPhoto(this)" style="width:100%;aspect-ratio:1;object-fit:cover;cursor:pointer;"></div><div style="font-size:12px;color:#777;padding:12px 2px;">点击任意照片查看大图。添加照片的方法见文件末尾的代码注释。</div></div><div id="photo-viewer" onclick="closePhotoViewer(event)" style="display:none;position:absolute;inset:0;z-index:20;background:rgba(0,0,0,.96);align-items:center;justify-content:center;flex-direction:column;"><button onclick="closePhotoViewer()" style="position:absolute;top:18px;left:16px;background:transparent;border:0;color:white;font-size:28px;">‹</button><img id="photo-viewer-image" alt="放大照片" style="max-width:100%;max-height:78%;object-fit:contain;"><div id="photo-viewer-caption" style="color:#ddd;font-size:13px;padding:16px;"></div></div></div>
+    <div class="app-window" id="app-maps">
+        <div class="app-header"><div class="nav-btn" onclick="closeApp('maps')">‹ 返回</div><b>地图</b><div class="close-btn" onclick="closeApp('maps')">✕</div></div>
+        <div class="maps-searchbar"><span style="font-size:18px;color:#4285f4">⌕</span><input id="maps-query" aria-label="搜索地图地点" placeholder="搜索地点、地址" value="延世大学，首尔" onkeydown="if(event.key==='Enter')searchMap()"><button onclick="searchMap()">搜索</button></div>
+        <div class="maps-quick-search"><button onclick="setMapQuery('延世大学')">延世大学</button><button onclick="setMapQuery('新村站')">新村站</button><button onclick="setMapQuery('延世大学中央图书馆')">中央图书馆</button><button onclick="setMapQuery('延世大学附近咖啡馆')">咖啡馆</button></div>
+        <iframe id="maps-frame" title="延世大学周边交互地图" src="https://maps.google.com/maps?q=%E5%BB%B6%E4%B8%96%E5%A4%A7%E5%AD%A6%2C%20Seoul&t=&z=15&ie=UTF8&iwloc=&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+        <div class="maps-footer"><span>地图由 Google Maps 提供</span><a href="https://maps.apple.com/?q=Yonsei%20University%20Seoul" target="_blank" rel="noopener">在 Apple 地图中打开 ↗</a></div>
+    </div>
+    <div class="app-window" id="app-clock" style="background:#000;color:#f5f5f7;">
+      <div class="app-header" style="background:#000;color:#fff;border-bottom:1px solid #242426;"><div class="nav-btn" style="background:#222;color:#0a84ff;" onclick="closeApp('clock')">‹ 主屏幕</div><b>时钟</b><div style="width:34px"></div></div>
+      <div class="app-body" style="background:#000;color:#f5f5f7;padding:0 0 28px;overflow-y:auto;">
+        <div style="display:flex;gap:22px;padding:18px 20px 14px;border-bottom:1px solid #242426;font-size:15px;white-space:nowrap;"><span style="color:#ff9f0a;border-bottom:2px solid #ff9f0a;padding-bottom:8px;">闹钟</span><span style="color:#8e8e93;">世界时钟</span><span style="color:#8e8e93;">秒表</span><span style="color:#8e8e93;">计时器</span></div>
+        <div style="padding:18px 20px 8px;font-size:28px;font-weight:700;">闹钟</div>
+        <div style="margin:0 16px 18px;padding:16px;border-radius:14px;background:#1c1c1e;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="font-size:12px;color:#ff9f0a;font-weight:700;letter-spacing:.4px;">睡眠｜起床闹钟</span><span style="font-size:12px;color:#8e8e93;">健康</span></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;"><div><div style="font-size:42px;font-weight:300;letter-spacing:-1px;">09:30</div><div style="font-size:13px;color:#8e8e93;margin-top:2px;">起床 · 每天</div></div><label style="position:relative;display:inline-flex;width:48px;height:29px;flex-shrink:0;"><input type="checkbox" checked style="opacity:0;width:0;height:0;" aria-label="开启起床闹钟" onchange="this.nextElementSibling.style.background=this.checked?'#34c759':'#39393d';this.nextElementSibling.firstElementChild.style.transform=this.checked?'translateX(19px)':'translateX(0)'"><span style="position:absolute;inset:0;background:#34c759;border-radius:18px;transition:.2s;cursor:pointer;"><i style="position:absolute;left:3px;top:3px;width:23px;height:23px;background:white;border-radius:50%;transform:translateX(19px);transition:.2s;"></i></span></label></div>
+          <div style="font-size:12px;color:#8e8e93;margin-top:10px;">起床闹钟已开启</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0 20px 8px;"><span style="font-size:22px;font-weight:700;">其他闹钟</span><span style="font-size:12px;color:#8e8e93;">仅起床闹钟开启</span></div>
+        <div id="other-alarms" style="margin:0 16px;border-radius:14px;overflow:hidden;background:#1c1c1e;">
+          <div class="alarm-row" style="display:flex;align-items:center;justify-content:space-between;padding:13px 14px;border-bottom:1px solid #38383a;"><div><div style="font-size:34px;font-weight:300;">07:30</div><div style="font-size:12px;color:#8e8e93;">闹钟</div></div><label class="alarm-switch" style="position:relative;display:inline-flex;width:48px;height:29px;"><input type="checkbox" style="opacity:0;width:0;height:0;" aria-label="07:30闹钟开关" onchange="toggleAlarm(this)"><span style="position:absolute;inset:0;background:#39393d;border-radius:18px;cursor:pointer;"><i style="position:absolute;left:3px;top:3px;width:23px;height:23px;background:white;border-radius:50%;"></i></span></label></div>
+          <div class="alarm-row" style="display:flex;align-items:center;justify-content:space-between;padding:13px 14px;border-bottom:1px solid #38383a;"><div><div style="font-size:34px;font-weight:300;">07:35</div><div style="font-size:12px;color:#8e8e93;">闹钟</div></div><label class="alarm-switch" style="position:relative;display:inline-flex;width:48px;height:29px;"><input type="checkbox" style="opacity:0;width:0;height:0;" aria-label="07:35闹钟开关" onchange="toggleAlarm(this)"><span style="position:absolute;inset:0;background:#39393d;border-radius:18px;cursor:pointer;"><i style="position:absolute;left:3px;top:3px;width:23px;height:23px;background:white;border-radius:50%;"></i></span></label></div>
+          <div class="alarm-row" style="display:flex;align-items:center;justify-content:space-between;padding:13px 14px;border-bottom:1px solid #38383a;"><div><div style="font-size:34px;font-weight:300;">07:40</div><div style="font-size:12px;color:#8e8e93;">闹钟</div></div><label class="alarm-switch" style="position:relative;display:inline-flex;width:48px;height:29px;"><input type="checkbox" style="opacity:0;width:0;height:0;" aria-label="07:40闹钟开关" onchange="toggleAlarm(this)"><span style="position:absolute;inset:0;background:#39393d;border-radius:18px;cursor:pointer;"><i style="position:absolute;left:3px;top:3px;width:23px;height:23px;background:white;border-radius:50%;"></i></span></label></div>
+          <div class="alarm-row" style="display:flex;align-items:center;justify-content:space-between;padding:13px 14px;border-bottom:1px solid #38383a;"><div><div style="font-size:34px;font-weight:300;">13:50</div><div style="font-size:12px;color:#8e8e93;">闹钟</div></div><label class="alarm-switch" style="position:relative;display:inline-flex;width:48px;height:29px;"><input type="checkbox" style="opacity:0;width:0;height:0;" aria-label="13:50闹钟开关" onchange="toggleAlarm(this)"><span style="position:absolute;inset:0;background:#39393d;border-radius:18px;cursor:pointer;"><i style="position:absolute;left:3px;top:3px;width:23px;height:23px;background:white;border-radius:50%;"></i></span></label></div>
+          <div class="alarm-row" style="display:flex;align-items:center;justify-content:space-between;padding:13px 14px;border-bottom:1px solid #38383a;"><div><div style="font-size:34px;font-weight:300;">18:00</div><div style="font-size:12px;color:#8e8e93;">闹钟</div></div><label class="alarm-switch" style="position:relative;display:inline-flex;width:48px;height:29px;"><input type="checkbox" style="opacity:0;width:0;height:0;" aria-label="18:00闹钟开关" onchange="toggleAlarm(this)"><span style="position:absolute;inset:0;background:#39393d;border-radius:18px;cursor:pointer;"><i style="position:absolute;left:3px;top:3px;width:23px;height:23px;background:white;border-radius:50%;"></i></span></label></div>
+          <div class="alarm-row" style="display:flex;align-items:center;justify-content:space-between;padding:13px 14px;"><div><div style="font-size:34px;font-weight:300;">22:30</div><div style="font-size:12px;color:#8e8e93;">闹钟</div></div><label class="alarm-switch" style="position:relative;display:inline-flex;width:48px;height:29px;"><input type="checkbox" style="opacity:0;width:0;height:0;" aria-label="22:30闹钟开关" onchange="toggleAlarm(this)"><span style="position:absolute;inset:0;background:#39393d;border-radius:18px;cursor:pointer;"><i style="position:absolute;left:3px;top:3px;width:23px;height:23px;background:white;border-radius:50%;"></i></span></label></div>
+        </div>
+        <div style="padding:14px 20px;font-size:12px;color:#8e8e93;line-height:1.5;">闹钟开关可在模拟器内切换。此页面仅模拟时钟界面，不会在网页关闭后触发系统级闹钟通知。</div>
+      </div>
+    </div>
+    <!-- 内部 App：Gmail（韩/中/英三语定制版） -->
+    <div class="app-window" id="app-gmail">
+        <div class="app-header">
+            <div class="nav-btn" onclick="closeApp('gmail')">‹ 主屏幕</div>
+            <span style="color:#ea4335; font-weight:700;">Gmail</span>
+            <div class="close-btn" onclick="closeApp('gmail')">✕</div>
+        </div>
+        <div class="app-body" style="background: #f7f7f8; padding: 12px;">
+            <div style="font-size: 20px; font-weight: 700; margin-bottom: 12px; color: #111;">收件箱 (8)</div>
+            
+            <!-- 邮件 1：近现代史微视频 -->
+            <div style="background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 4px solid #ea4335;">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 4px;">
+                    <span>延世大学教务处 / 교수님</span><span>오늘 (Today)</span>
+                </div>
+                <div style="font-weight: 700; font-size: 14px; color: #111; margin-bottom: 2px;">
+                    [공지] 한국 근현대사 소그룹 미디어 과제 제출 마감 안내<br>
+                    <span style="font-size: 12px; color: #666; font-weight: normal;">【通知】《近现代史纲要》小组微视频截止提醒 / [Notice] Deadline Reminder</span>
+                </div>
+                <div style="font-size: 13px; color: #333; line-height: 1.5; margin-top: 6px;">
+                    <div><b>KR:</b> 이번 학기 '한국 근현대사' 미디어 과제 제출이 다가왔습니다. 이번 주 금요일 밤 23:59까지 제출해 주세요.</div>
+                    <div style="font-size: 12px; color: #555; background: #f8f9fa; padding: 4px 8px; border-radius: 6px; margin-top: 2px;"><b>CN:</b> 本学期《近现代史纲要》微视频作业提交临近，请于本周五晚23:59前完成提交。</div>
+                    <div style="font-size: 12px; color: #777; margin-top: 2px;"><b>EN:</b> Submission deadline for the Modern Korean History video project is this Friday at 23:59.</div>
+                </div>
+            </div>
+
+            <!-- 邮件 2：选课与成绩 -->
+            <div style="background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 4px solid #ea4335;">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 4px;">
+                    <span>연세대학교 학사지원시스템</span><span>2일 전 (2 days ago)</span>
+                </div>
+                <div style="font-weight: 700; font-size: 14px; color: #111; margin-bottom: 2px;">
+                    수강 신청 성공 확인 및 지난 학기 성적표 안내<br>
+                    <span style="font-size: 12px; color: #666; font-weight: normal;">【通知】选课成功确认信及上学期成绩单</span>
+                </div>
+                <div style="font-size: 13px; color: #333; line-height: 1.5; margin-top: 6px;">
+                    <div><b>KR:</b> 교양 필수 과목 수강 신청이 완료되었습니다. 또한 직전 학기 최종 성적표가 발급되었습니다.</div>
+                    <div style="font-size: 12px; color: #555; background: #f8f9fa; padding: 4px 8px; border-radius: 6px; margin-top: 2px;"><b>CN:</b> 通识核心课程选课已成功确认，同时上一学期期末成绩单已生成可查。</div>
+                    <div style="font-size: 12px; color: #777; margin-top: 2px;"><b>EN:</b> General education course registration confirmed. Your previous semester GPA report is now available.</div>
+                </div>
+            </div>
+
+            <!-- 邮件 3：学生会招新 -->
+            <div style="background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 4px solid #ea4335;">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 4px;">
+                    <span>총학생회 채용담당</span><span>3일 전 (3 days ago)</span>
+                </div>
+                <div style="font-weight: 700; font-size: 14px; color: #111; margin-bottom: 2px;">
+                    [합격 통지] 연세대학교 총학생회 간부 최종 합격<br>
+                    <span style="font-size: 12px; color: #666; font-weight: normal;">【录用通知】正式成为校学生会干事</span>
+                </div>
+                <div style="font-size: 13px; color: #333; line-height: 1.5; margin-top: 6px;">
+                    <div><b>KR:</b> 2차 면접 평가 결과, 총학생회 정식 간부로 합격하셨음을 축하드립니다. 목요일 오후 회의에 참석해 주세요.</div>
+                    <div style="font-size: 12px; color: #555; background: #f8f9fa; padding: 4px 8px; border-radius: 6px; margin-top: 2px;"><b>CN:</b> 经过两轮面试评估，恭喜您正式被录用为学生会干事，周四下午将召开首次部门例会。</div>
+                    <div style="font-size: 12px; color: #777; margin-top: 2px;"><b>EN:</b> Congratulations on passing the interviews and joining the Student Union. First meeting on Thursday afternoon.</div>
+                </div>
+            </div>
+
+            <!-- 邮件 4：高铁票 -->
+            <div style="background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 4px solid #ea4335;">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 4px;">
+                    <span>KORAIL (한국철도공사)</span><span>5일 전 (5 days ago)</span>
+                </div>
+                <div style="font-weight: 700; font-size: 14px; color: #111; margin-bottom: 2px;">
+                    [승차권 확인] KTX 열차표 예매 완료 (05호차 13A)<br>
+                    <span style="font-size: 12px; color: #666; font-weight: normal;">[车票确认] KTX 高铁票预订成功 (05车厢 13A)</span>
+                </div>
+                <div style="font-size: 13px; color: #333; line-height: 1.5; margin-top: 6px;">
+                    <div><b>KR:</b> KTX 승차권 예매가 완료되었습니다. 좌석번호: 05호차 13A. 신분증을 지참하고 탑승해 주세요.</div>
+                    <div style="font-size: 12px; color: #555; background: #f8f9fa; padding: 4px 8px; border-radius: 6px; margin-top: 2px;"><b>CN:</b> KTX高铁车票已出票成功，座位号：05车厢 13A，请携带有效证件按时进站。</div>
+                    <div style="font-size: 12px; color: #777; margin-top: 2px;"><b>EN:</b> KTX ticket booking confirmed. Seat: Car 05, 13A. Please bring your ID for boarding.</div>
+                </div>
+            </div>
+
+            <!-- 邮件 5：民宿预订 -->
+            <div style="background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 4px solid #ea4335;">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 4px;">
+                    <span>Airbnb / Agoda</span><span>1주일 전 (1 week ago)</span>
+                </div>
+                <div style="font-weight: 700; font-size: 14px; color: #111; margin-bottom: 2px;">
+                    부산 해운대 오션뷰 숙소 예약 확정 안내<br>
+                    <span style="font-size: 12px; color: #666; font-weight: normal;">釜山海景民宿预订成功确认函 / Busan Stay Confirmed</span>
+                </div>
+                <div style="font-size: 13px; color: #333; line-height: 1.5; margin-top: 6px;">
+                    <div><b>KR:</b> 바다 전망 민박 예약이 완료되었습니다. 이번 주 금요일 오후 15시에 셀프 체크인 가능합니다.</div>
+                    <div style="font-size: 12px; color: #555; background: #f8f9fa; padding: 4px 8px; border-radius: 6px; margin-top: 2px;"><b>CN:</b>海景民宿已预订成功，本周五下午 15:00 即可办理自助入住。</div>
+                    <div style="font-size: 12px; color: #777; margin-top: 2px;"><b>EN:</b> Busan weekend getaway accommodation booking confirmed. Check-in this Friday at 15:00.</div>
+                </div>
+            </div>
+
+            <!-- 邮件 6：咖啡店订阅 -->
+            <div style="background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 4px solid #ea4335;">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 4px;">
+                    <span>신촌 모퉁이 카페</span><span>1주일 전 (1 week ago)</span>
+                </div>
+                <div style="font-weight: 700; font-size: 14px; color: #111; margin-bottom: 2px;">
+                    [멤버십] 가을 신상 바닐라 라떼 시음 쿠폰이 도착했어요!<br>
+                    <span style="font-size: 12px; color: #666; font-weight: normal;">【会员通知】秋季新品香草拿铁尝鲜优惠券</span>
+                </div>
+                <div style="font-size: 13px; color: #333; line-height: 1.5; margin-top: 6px;">
+                    <div><b>KR:</b> 단골 손님을 위한 이번 주 가을 한정 바닐라 라떼 무료 시음 쿠폰이 계정에 적립되었습니다.</div>
+                    <div style="font-size: 12px; color: #555; background: #f8f9fa; padding: 4px 8px; border-radius: 6px; margin-top: 2px;"><b>CN:</b> 老顾客专属福利，您本周的秋季限定香草拿铁尝鲜券已存入账户，欢迎常来。</div>
+                    <div style="font-size: 12px; color: #777; margin-top: 2px;"><b>EN:</b> Your membership coupon for the new autumn vanilla latte has been credited to your account.</div>
+                </div>
+            </div>
+
+            <!-- 邮件 7：助教/奖学金 -->
+            <div style="background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 4px solid #ea4335;">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 4px;">
+                    <span>대학 행정실 (Administration)</span><span>2주일 전 (2 weeks ago)</span>
+                </div>
+                <div style="font-weight: 700; font-size: 14px; color: #111; margin-bottom: 2px;">
+                    장학금 선정 결과 공고 및 TA(조교) 업무 일정표 안내<br>
+                    <span style="font-size: 12px; color: #666; font-weight: normal;">【公示】奖学金申请结果及助教(TA)工作安排</span>
+                </div>
+                <div style="font-size: 13px; color: #333; line-height: 1.5; margin-top: 6px;">
+                    <div><b>KR:</b> 이번 학기 국가 및 교내 장학금 선정 결과가 공고되었습니다. 첨부된 교수님 연구실 조교(TA) 업무 일정을 확인하세요.</div>
+                    <div style="font-size: 12px; color: #555; background: #f8f9fa; padding: 4px 8px; border-radius: 6px; margin-top: 2px;"><b>CN:</b> 本学期奖学金申请结果已正式公示，附件中包含教授实验室助教(TA)的日常值班安排表。</div>
+                    <div style="font-size: 12px; color: #777; margin-top: 2px;"><b>EN:</b> Scholarship selection results announced. Please check the attached TA work schedule from the professor.</div>
+                </div>
+            </div>
+
+            <!-- 邮件 8：图书馆催还 -->
+            <div style="background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 4px solid #ea4335;">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 4px;">
+                    <span>연세대학교 중앙도서관</span><span>3주일 전 (3 weeks ago)</span>
+                </div>
+                <div style="font-weight: 700; font-size: 14px; color: #111; margin-bottom: 2px;">
+                    [도서 반납 안내] 대출하신 도서 만기 3일 전입니다<br>
+                    <span style="font-size: 12px; color: #666; font-weight: normal;">【图书馆提醒】《艺术与设计史》即将到期</span>
+                </div>
+                <div style="font-size: 13px; color: #333; line-height: 1.5; margin-top: 6px;">
+                    <div><b>KR:</b> 대출 중인 '예술과 디자인의 역사' 도서 반납 기한이 3일 남았습니다. 홈페이지에서 연장 가능합니다.</div>
+                    <div style="font-size: 12px; color: #555; background: #f8f9fa; padding: 4px 8px; border-radius: 6px; margin-top: 2px;"><b>CN:</b> 读者您好，您借阅的《艺术与设计史》还有3天到期，请及时归还或在官网办理续借。</div>
+                    <div style="font-size: 12px; color: #777; margin-top: 2px;"><b>EN:</b> Reminder: The borrowed book 'History of Art & Design' is due in 3 days. Online renewal is available.</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+       <!-- 内部 App：iOS 天气（完美复刻多城市切换、逐时预报与多日趋势） -->
+    <div class="app-window" id="app-weather">
+        <!-- 城市详情视图 -->
+        <div id="weather-detail-view" style="width:100%; height:100%; display:flex; flex-direction:column; background: linear-gradient(135deg, #2980b9, #2c3e50); color:#fff; position:relative; overflow-y:auto;">
+            <div style="padding: 64px 20px 10px 20px; text-align: center; margin-top: 0;">
+                <div id="w-city" style="font-size: 26px; font-weight: 600;">韩国首尔 (Seoul)</div>
+                <div id="w-temp" style="font-size: 68px; font-weight: 200; line-height: 1.1;">18°</div>
+                <div id="w-condition" style="font-size: 16px; font-weight: 500;">多云</div>
+                <div style="font-size: 14px; opacity: 0.9; margin-top: 2px;"><span id="w-high">最高 21°</span>  <span id="w-low">最低 12°</span></div>
+            </div>
+
+            <div style="padding: 0 16px; display:flex; flex-direction:column; gap:12px; margin-bottom: 70px;">
+                <!-- 空气质量/提示卡片 -->
+                <div style="background: rgba(255,255,255,0.2); backdrop-filter: blur(20px); border-radius: 16px; padding: 14px; border: 1px solid rgba(255,255,255,0.15);">
+                    <div id="w-aqi" style="font-size: 12px; opacity: 0.9; margin-bottom: 4px;">空气质量 AQI · 正在读取</div>
+                    <div style="width: 100%; height: 4px; background: rgba(0,0,0,0.2); border-radius: 2px;"><div style="width: 25%; height: 100%; background: #2ecc71; border-radius: 2px;"></div></div>
+                </div>
+
+                <!-- 逐时预报卡片 -->
+                <div style="background: rgba(255,255,255,0.2); backdrop-filter: blur(20px); border-radius: 16px; padding: 14px; border: 1px solid rgba(255,255,255,0.15);">
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 10px;">天气状况 · 气温 (°C)</div>
+                    <div style="display: flex; justify-content: space-between; text-align: center; font-size: 13px;">
+                        <div><div>现在</div><div style="margin:6px 0;">☁️</div><div>18°</div></div>
+                        <div><div>13时</div><div style="margin:6px 0;">🌤️</div><div>19°</div></div>
+                        <div><div>14时</div><div style="margin:6px 0;">☀️</div><div>21°</div></div>
+                        <div><div>15时</div><div style="margin:6px 0;">☀️</div><div>20°</div></div>
+                        <div><div>16时</div><div style="margin:6px 0;">⛅</div><div>18°</div></div>
+                        <div><div>17时</div><div style="margin:6px 0;">🌙</div><div>16°</div></div>
+                    </div>
+                </div>
+
+                <!-- 未来多日预报卡片 -->
+                <div style="background: rgba(255,255,255,0.2); backdrop-filter: blur(20px); border-radius: 16px; padding: 14px; border: 1px solid rgba(255,255,255,0.15);" id="w-forecast">
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 10px;">近期天气趋势</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 14px;">
+                        <span style="width: 50px;">今天</span><span>☁️</span><span>12°</span><div style="width: 80px; height: 4px; background: rgba(255,255,255,0.3); border-radius:2px;"><div style="width: 60%; height:100%; background:#f1c40f; border-radius:2px; margin-left:10px;"></div></div><span>21°</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 14px;">
+                        <span style="width: 50px;">周五</span><span>☀️</span><span>14°</span><div style="width: 80px; height: 4px; background: rgba(255,255,255,0.3); border-radius:2px;"><div style="width: 70%; height:100%; background:#f1c40f; border-radius:2px; margin-left:5px;"></div></div><span>23°</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px;">
+                        <span style="width: 50px;">周六</span><span>🌤️</span><span>13°</span><div style="width: 80px; height: 4px; background: rgba(255,255,255,0.3); border-radius:2px;"><div style="width: 65%; height:100%; background:#f1c40f; border-radius:2px; margin-left:8px;"></div></div><span>22°</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 天气底部导航栏 -->
+            <div style="position: absolute; bottom: 0; width: 100%; height: 50px; background: rgba(0,0,0,0.3); backdrop-filter: blur(20px); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; font-size: 18px;">
+                <div onclick="closeApp('weather')" aria-label="返回主屏幕" style="cursor:pointer;font-size:20px;">⌂</div>
+                <div style="font-size: 12px; opacity: 0.8;">Apple 天气</div>
+                <div onclick="showCityList()" aria-label="城市列表" style="cursor:pointer;font-size:22px;">☰</div>
+            </div>
+        </div>
+
+        <!-- 城市列表：约 3–4 cm 高的紧凑天气卡片 -->
+        <div id="weather-list-view" style="width:100%; height:100%; background:#101114; color:#fff; position:absolute; top:0; left:0; display:none; flex-direction:column; padding:58px 14px 18px; overflow:hidden;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                <div style="font-size:28px; font-weight:700;">天气</div>
+                <button aria-label="返回天气详情" onclick="hideCityList()" style="border:0;background:rgba(255,255,255,.16);color:#fff;width:34px;height:34px;border-radius:50%;font-size:21px;">×</button>
+            </div>
+            <form onsubmit="searchWeatherCity(event)" style="background:rgba(255,255,255,.14);padding:11px 13px;border-radius:12px;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+                <span>⌕</span><input id="weather-city-search" class="weather-search-input" placeholder="搜索城市或机场" aria-label="搜索城市或机场"><button type="submit" style="background:#4a9cff;border:0;color:white;border-radius:9px;padding:6px 10px;font-size:13px;">搜索</button>
+            </form>
+            <div id="weather-search-status" style="font-size:12px;color:#bbb;min-height:16px;margin:0 2px 6px;"></div>
+            <div class="weather-list-scroll" id="weather-city-list">
+                <div class="weather-city-card" style="background:linear-gradient(120deg,#2675b9,#263a59);" onclick="selectWeatherLocation('韩国首尔','Seoul',37.5665,126.9780,'linear-gradient(135deg,#2980b9,#2c3e50)')">
+                    <div><div class="weather-mini">韩国 · 首都</div><div style="font-size:22px;font-weight:700;">首尔</div><div class="weather-mini" id="mini-cond-seoul">正在读取天气…</div></div><div><div class="weather-city-temp" id="mini-temp-seoul">--°</div><div class="weather-mini" id="mini-range-seoul">最高 --° 最低 --°</div></div>
+                </div>
+                <div class="weather-city-card" style="background:linear-gradient(120deg,#7853a8,#42335f);" onclick="selectWeatherLocation('韩国礼山','Yesan',36.6828,126.8489,'linear-gradient(135deg,#8e44ad,#9b59b6)')">
+                    <div><div class="weather-mini">韩国 · 忠清南道</div><div style="font-size:22px;font-weight:700;">礼山</div><div class="weather-mini" id="mini-cond-yesan">正在读取天气…</div></div><div><div class="weather-city-temp" id="mini-temp-yesan">--°</div><div class="weather-mini" id="mini-range-yesan">最高 --° 最低 --°</div></div>
+                </div>
+                <div class="weather-city-card" style="background:linear-gradient(120deg,#168f88,#155b65);" onclick="selectWeatherLocation('中国河南新乡','Xinxiang',35.3030,113.9268,'linear-gradient(135deg,#16a085,#1abc9c)')">
+                    <div><div class="weather-mini">中国 · 河南省</div><div style="font-size:22px;font-weight:700;">新乡</div><div class="weather-mini" id="mini-cond-xinxiang">正在读取天气…</div></div><div><div class="weather-city-temp" id="mini-temp-xinxiang">--°</div><div class="weather-mini" id="mini-range-xinxiang">最高 --° 最低 --°</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-window" id="app-settings"><div class="app-header"><div class="nav-btn" onclick="closeApp('settings')">‹ 返回</div><b>设置</b><div class="close-btn" onclick="closeApp('settings')">✕</div></div><div class="app-body" style="padding:20px;">系统设置</div></div>
+    <div class="app-window" id="app-safari"><div class="app-header"><div class="nav-btn" onclick="closeApp('safari')">‹ 返回</div><b>Safari</b><div class="close-btn" onclick="closeApp('safari')">✕</div></div><div class="app-body" style="padding:20px;">https://www.yonsei.ac.kr</div></div>
+</div>
+
+<script>
+    // 韩国时间计算（比北京时间快1小时）
+    function updateClock() {
+        const now = new Date();
+        const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(now);
+        const h = parts.find(p => p.type === 'hour').value;
+        const m = parts.find(p => p.type === 'minute').value;
+        const timeStr = `${h}:${m}`;
+        
+        document.getElementById('lock-time-text').innerText = timeStr;
+        document.getElementById('status-time').innerText = timeStr;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    function showPasscode() { document.getElementById('passcode-pad').style.display = 'flex'; }
+    function cancelPasscode() { document.getElementById('passcode-pad').style.display = 'none'; pinInput = ""; updatePinDots(); }
+
+    let pinInput = "";
+    function pressPin(num) {
+        if(pinInput.length < 4) pinInput += num;
+        updatePinDots();
+        if(pinInput.length === 4) {
+            setTimeout(() => {
+                document.getElementById('passcode-pad').style.display = 'none';
+                document.getElementById('lock-screen').style.transform = 'translateY(-100%)';
+                document.getElementById('lock-screen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('lock-screen').style.display = 'none';
+                    document.getElementById('home-screen').style.display = 'flex';
+                }, 300);
+            }, 200);
+        }
+    }
+    function updatePinDots() {
+        const dots = document.querySelectorAll('#pin-dots div');
+        dots.forEach((dot, idx) => { dot.style.background = idx < pinInput.length ? '#fff' : 'transparent'; });
+    }
+
+    // 所有 App 统一使用左上角的主屏幕图标
+    document.querySelectorAll('.app-window').forEach(win => {
+        if (!win.querySelector(':scope > .universal-home')) {
+            const home = document.createElement('button'); home.className='universal-home'; home.type='button'; home.setAttribute('aria-label','返回主屏幕'); home.title='返回主屏幕'; home.innerHTML='⌂'; home.onclick=()=>{ win.classList.remove('active'); document.getElementById('weather-list-view')?.style && (document.getElementById('weather-list-view').style.display='none'); }; win.appendChild(home);
+        }
+    });
+    function openApp(name) { const win = document.getElementById('app-' + name); if(win) win.classList.add('active'); }
+    function closeApp(name) { const win = document.getElementById('app-' + name); if(win) win.classList.remove('active'); }
+
+    // 待办事项勾选交互
+    function toggleTodo(el) {
+        el.classList.toggle('completed');
+    }
+
+    // Spotify 音乐与灵动岛联动
+    let isPlaying = false;
+    function playSong(title, artist, flag, cover = 'image_6.jpg') {
+        isPlaying = true;
+        document.getElementById('song-title').innerText = title;
+        document.getElementById('song-artist').innerText = `${artist} ${flag}`;
+
+        const coverImg = document.getElementById('album-art-image');
+        const coverFallback = document.getElementById('album-art-fallback');
+        if (coverImg) {
+            coverImg.style.display = 'block';
+            coverFallback.style.display = 'none';
+            coverImg.onerror = function () {
+                this.style.display = 'none';
+                coverFallback.style.display = 'flex';
+            };
+            coverImg.src = cover;
+        }
+
+        const di = document.getElementById('dynamic-island');
+        di.classList.add('playing');
+        document.getElementById('di-icon').innerText = '🎵';
+        document.getElementById('di-text').innerText = `${title} - ${artist}`;
+    }
+
+    function toggleMusicApp() {
+        if(!isPlaying) {
+            playSong('太聪明', '陈粒', '🇨🇳');
+        } else {
+            openApp('spotify');
+        }
+    }
+    // 天气城市列表与实时天气：Open-Meteo 免费接口（需联网；接口失败时保留提示）
+    const weatherPlaces = {
+        seoul:{name:'韩国首尔 (Seoul)',short:'首尔',lat:37.5665,lon:126.9780,bg:'linear-gradient(135deg,#2980b9,#2c3e50)',key:'seoul'},
+        yesan:{name:'韩国礼山 (Yesan)',short:'礼山',lat:36.6828,lon:126.8489,bg:'linear-gradient(135deg,#8e44ad,#9b59b6)',key:'yesan'},
+        xinxiang:{name:'中国河南新乡 (Xinxiang)',short:'新乡',lat:35.3030,lon:113.9268,bg:'linear-gradient(135deg,#16a085,#1abc9c)',key:'xinxiang'}
+    };
+    const weatherCodeText = code => ({0:'晴朗',1:'大致晴朗',2:'局部多云',3:'阴天',45:'有雾',48:'雾凇',51:'毛毛雨',53:'毛毛雨',55:'强毛毛雨',61:'小雨',63:'中雨',65:'大雨',71:'小雪',73:'中雪',75:'大雪',80:'阵雨',81:'强阵雨',82:'暴雨',95:'雷暴',96:'雷暴伴冰雹',99:'强雷暴'})[code] || '天气状况';
+    async function loadWeather(place, updateDetail=false) {
+        const url=`https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&temperature_unit=celsius&timezone=auto&forecast_days=3`;
+        try {
+            const res=await fetch(url); if(!res.ok) throw new Error('weather'); const data=await res.json();
+            const c=data.current, d=data.daily, temp=Math.round(c.temperature_2m), hi=Math.round(d.temperature_2m_max[0]), lo=Math.round(d.temperature_2m_min[0]), cond=weatherCodeText(c.weather_code);
+            const mini=document.getElementById(`mini-temp-${place.key}`); if(mini) mini.textContent=`${temp}°`;
+            const mc=document.getElementById(`mini-cond-${place.key}`); if(mc) mc.textContent=cond;
+            const mr=document.getElementById(`mini-range-${place.key}`); if(mr) mr.textContent=`最高 ${hi}° 最低 ${lo}°`;
+            if(updateDetail) {
+                document.getElementById('w-city').textContent=place.name;
+                document.getElementById('w-temp').textContent=`${temp}°`;
+                document.getElementById('w-condition').textContent=`${cond} · 体感 ${Math.round(c.apparent_temperature)}°`;
+                document.getElementById('w-high').textContent=`最高 ${hi}°`;
+                document.getElementById('w-low').textContent=`最低 ${lo}°`;
+                document.getElementById('weather-detail-view').style.background=place.bg;
+                const aqi=document.getElementById('w-aqi'); if(aqi) aqi.textContent=`湿度 ${c.relative_humidity_2m}% · 风速 ${Math.round(c.wind_speed_10m)} km/h · 降水 ${c.precipitation} mm`;
+                const forecast=document.getElementById('w-forecast');
+                if(forecast) { const rows=Array.from(forecast.children).slice(1); rows.forEach((row,i)=>{ if(d.time[i]) { const spans=row.querySelectorAll('span'); if(spans.length>=4){ spans[0].textContent=i===0?'今天':d.time[i].slice(5).replace('-','/'); spans[2].textContent=`${Math.round(d.temperature_2m_min[i])}°`; spans[4].textContent=`${Math.round(d.temperature_2m_max[i])}°`; } } }); }
+            }
+        } catch(e) {
+            const mc=document.getElementById(`mini-cond-${place.key}`); if(mc) mc.textContent='暂时无法获取天气';
+        }
+    }
+    async function loadAllWeather() { await Promise.all(Object.values(weatherPlaces).map(p=>loadWeather(p,false))); }
+    function showCityList() { document.getElementById('weather-list-view').style.display='flex'; loadAllWeather(); }
+    function hideCityList() { document.getElementById('weather-list-view').style.display='none'; }
+    async function selectWeatherLocation(label, english, lat, lon, bg) {
+        const place={name:label+' ('+english+')',short:label,lat,lon,bg,key:'custom'};
+        hideCityList();
+        // 首先显示城市名称，随后以接口返回的天气更新详情
+        document.getElementById('w-city').textContent=place.name;
+        document.getElementById('w-temp').textContent='…';
+        document.getElementById('w-condition').textContent='正在获取天气';
+        document.getElementById('weather-detail-view').style.background=bg;
+        await loadWeather(place,true);
+    }
+    async function searchWeatherCity(event) {
+        event.preventDefault();
+        const input=document.getElementById('weather-city-search'), status=document.getElementById('weather-search-status');
+        const q=input.value.trim(); if(!q) { status.textContent='请输入城市名称'; return; }
+        status.textContent='正在搜索…';
+        try {
+            const res=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=zh&format=json`);
+            const data=await res.json(); const place=data.results && data.results[0];
+            if(!place) { status.textContent='没有找到这个地点，请换个关键词'; return; }
+            status.textContent=`已找到：${place.name}${place.admin1 ? ' · '+place.admin1 : ''}${place.country ? ' · '+place.country : ''}`;
+            await selectWeatherLocation(place.name, place.name, place.latitude, place.longitude, 'linear-gradient(135deg,#3478b8,#26334d)');
+        } catch(e) { status.textContent='搜索暂时不可用，请检查网络连接'; }
+    }
+    // 首次打开时加载三地天气；没有网络时会显示无法获取，不伪造实时数据
+    loadAllWeather();
+
+// 1. 网感评论词库与触发关键词映射
+const commentPools = {
+    // 触发CP向关键词
+    cp: [
+        "我说他俩能不能直接结婚",
+        "谁允许他们这么真的",
+        "民政局我搬来了你们看着办",
+        "别太真了我害怕",
+        "你们最好是真的",
+        "我产品是真的你们随意",
+        "啊啊啊啊啊啊啊啊啊啊",
+        "我就知道我就知道我就知道",
+        "让我死在这一刻",
+        "谁懂我现在的精神状态",
+        "我在床上扭成蛆了",
+        "我不行了我真的不行了",
+        "这口饭我能吃一辈子",
+        "我宣布今天是我的生日",
+        "给我锁死钥匙我吞了",
+        "嗯嗯知道了我又幸福了",
+        "好的又被创到了",
+        "随便吧反正我先嗑为敬",
+        "我只是路过怎么就结婚了",
+        "没事我就看看我不说话",
+        "哦所以全世界只有我不知道是吗",
+        "有点东西但不多就亿点",
+        "你们开心就好我先疯了",
+        "行行行你俩最会了",
+        "不说了我去冷静一下"
+    ],
+    
+    // 触发“累”相关关键词
+    tired: [
+        "宝宝辛苦了摸摸",
+        "谁把我的宝宝累成这样了",
+        "那就先不努力了",
+        "允许自己今天当个废物",
+        "累了就歇歇天又不会塌",
+        "申请强制休假一天",
+        "来人给她放个假",
+        "互联网判你休息半天",
+        "抱抱你今天辛苦啦",
+        "你已经很棒了真的",
+        "别卷了我命令你",
+        "那咋办呢先睡一觉吧",
+        "心疼一下我的互联网亲友",
+        "今天的任务是活着就好",
+        "来我这儿充会儿电",
+        "生活你又在搞什么飞机",
+        "摸摸头不许再累了",
+        "累了就摆谁也别管你",
+        "给你点杯奶茶压压惊",
+        "好了不许emo了听到没",
+        "我替你向世界请个假",
+        "谁的牛马宝宝还在加班",
+        "先休息一下再继续骂生活",
+        "不行了就来我怀里躺会儿"
+    ],
+    
+    // 触发“笑死我了”相关关键词
+    funny: [
+        "你先别笑我害怕",
+        "评论区比正文好笑",
+        "你这精神状态领先我十年",
+        "建议把你抓去做脱口秀",
+        "你笑得很好下次不许笑了",
+        "你是真的很容易满足",
+        "我肚肚啊",
+        "别笑了我手机都跟着抖",
+        "我不行了",
+        "到底是谁教你这么说话的",
+        "这辈子有了",
+        "我请问这是人类能发出来的吗",
+    ],
+    
+    // 触发“夸人美”相关关键词
+    beauty: [
+        "宝宝你真的好漂亮",
+        "美得很具体",
+        "美神下凡辛苦了",
+        "长这么美啥意思？",
+        "欧尼，对我有点防备心吧，我也是个女人啊",
+        "民政局走你",
+        "美女你有点过分了",
+        "美得我想报警",
+        "这是什么神仙同框"
+    ]
+};
+
+// 2. 根据用户输入的内容智能匹配对应分类的评论
+function getMatchingComment(userText) {
+        let matchedKey = null;
+
+        const rules = {
+            cp: ["家产", "99", "锐因", "雕蛙"],
+            tired: ["累", "加班", "困", "心累", "好烦", "嘛"],
+            funny: ["笑死我了", "哈哈", "笑死", "太搞笑", "草"],
+            beauty: ["美", "漂亮", "绝美", "姐姐好看", "帅", "颜"]
+        };
+
+        for (const [category, keywords] of Object.entries(rules)) {
+            if (keywords.some(keyword => userText.includes(keyword))) {
+                matchedKey = category;
+                break;
+            }
+        }
+
+        // 如果没有命中特定关键词，则随机从 funny 或 cp 中抽一句兜底
+        if (!matchedKey) {
+            const keys = Object.keys(commentPools);
+            matchedKey = keys[Math.floor(Math.random() * keys.length)];
+        }
+
+        const list = commentPools[matchedKey];
+        if (!list || list.length === 0) return "omg same 😭 literally me";
+
+        return list[Math.floor(Math.random() * list.length)];
+    }
+
+    // 3. 玩家发帖及 NPC 自动互动核心函数
+    // 时钟开关：仅切换模拟器中的开/关外观，不会创建系统级闹钟。
+    function toggleAlarm(input) {
+        const track = input.nextElementSibling;
+        const knob = track && track.firstElementChild;
+        if (!track || !knob) return;
+        track.style.background = input.checked ? '#34c759' : '#39393d';
+        knob.style.transform = input.checked ? 'translateX(19px)' : 'translateX(0)';
+    }
+
+    // 相册：点击缩略图后打开大图。
+    function openPhoto(img) {
+        const viewer = document.getElementById('photo-viewer');
+        const large = document.getElementById('photo-viewer-image');
+        const caption = document.getElementById('photo-viewer-caption');
+        if (!viewer || !large) return;
+        large.src = img.currentSrc || img.src;
+        caption.textContent = img.alt || '照片';
+        viewer.style.display = 'flex';
+    }
+    function closePhotoViewer(event) {
+        if (event && event.target && event.target.id === 'photo-viewer-image') return;
+        const viewer = document.getElementById('photo-viewer');
+        if (viewer) viewer.style.display = 'none';
+    }
+
+    /*
+      如何添加相册照片：
+      1. 把照片文件（例如 my-photo.jpg）上传到 GitHub 仓库，放在 index.html 同一目录。
+      2. 在 #photo-grid 内复制一行：
+         <img src="my-photo.jpg" alt="照片说明" onclick="openPhoto(this)" style="width:100%;aspect-ratio:1;object-fit:cover;cursor:pointer;">
+      3. src 必须与 GitHub 文件名大小写完全一致；如果放在 photos 文件夹里，写成 photos/my-photo.jpg。
+    */
+
+    function publishPost(platform) {
+        const inputId = platform + '-input';
+        const feedId = platform + '-feed';
+        const text = document.getElementById(inputId).value.trim();
+        
+        if(!text) {
+            alert('内容不能为空哦！');
+            return;
+        }
+
+        const feed = document.getElementById(feedId);
+        const newPost = document.createElement('div');
+        
+        if(platform === 'threads' || platform === 'x') {
+            newPost.style.cssText = 'border-bottom: 1px solid #222; padding-bottom: 14px; animation: fadeIn 0.5s;';
+            newPost.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #666;"></div>
+                    <div><b>你 (Player)</b><div style="font-size: 11px; color: #888;">刚刚</div></div>
+                </div>
+                <div style="font-size: 13.5px; line-height: 1.4; color: #fff;">${text}</div>
+                <div style="font-size: 12px; color: #888; margin-top: 8px;">❤️ 1 · 💬 0回复</div>
+                <div class="comment-section" style="margin-top: 8px; padding-left: 12px; border-left: 2px solid #333; font-size: 12.5px; color: #aaa;"></div>
+            `;
+        } else if(platform === 'instagram') {
+            newPost.style.cssText = 'border-bottom: 1px solid #222; padding-bottom: 12px; animation: fadeIn 0.5s;';
+            newPost.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px; padding: 0 12px 8px 12px;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #666;"></div>
+                    <b style="font-size: 13px;">player_00</b>
+                </div>
+                <div style="width: 100%; aspect-ratio: 1; background: #222; display: flex; justify-content: center; align-items: center; color: #888;">📸 [你的精选动态图片]</div>
+                <div style="padding: 10px 12px; font-size: 13px;"><b>player_00</b> ${text}</div>
+                <div class="comment-section" style="padding: 0 12px; font-size: 12.5px; color: #aaa;"></div>
+            `;
+        } else if(platform === 'youtube') {
+            newPost.style.cssText = 'background: #222; border-radius: 12px; overflow: hidden; margin-bottom: 14px; animation: fadeIn 0.5s;';
+            newPost.innerHTML = `
+                <div style="width: 100%; aspect-ratio: 16/9; background: #333; display: flex; justify-content: center; align-items: center; color: #888;">▶️ 我的个人视频动态</div>
+                <div style="padding: 10px;">
+                    <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${text}</div>
+                    <div style="font-size: 11.5px; color: #aaa;">Player Channel · 刚刚发布</div>
+                    <div class="comment-section" style="margin-top: 8px; font-size: 12px; color: #ccc;"></div>
+                </div>
+            `;
+        }
+
+        feed.prepend(newPost);
+        document.getElementById(inputId).value = '';
+
+        // 模拟 NPC 网友在 2 秒后根据你发的文字智能匹配评论并回复
+        setTimeout(() => {
+            const commentBox = newPost.querySelector('.comment-section');
+            if(commentBox) {
+                const replyText = getMatchingComment(text);
+                commentBox.innerHTML = `💬 <b>NPC 网友</b>: ${replyText}`;
+            }
+        }, 2000);
+    }
+    // 监听手机屏幕的触摸上滑事件
+    let touchStartY = 0;
+    const lockScreenEl = document.getElementById('lock-screen');
+
+    if(lockScreenEl) {
+        lockScreenEl.addEventListener('touchstart', function(e) {
+            touchStartY = e.touches[0].clientY;
+        }, {passive: true});
+
+        lockScreenEl.addEventListener('touchend', function(e) {
+            let touchEndY = e.changedTouches[0].clientY;
+            // 如果手指向上滑动的距离超过 40 像素，则触发解锁
+            if (touchStartY - touchEndY > 40) {
+                showPasscode();
+            }
+        }, {passive: true});
+    }
+   
+  // ==================== 1. 北京时间实时同步 ====================
+function syncRealToBeijingTime() {
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(now);
+    const hours = parts.find(p => p.type === 'hour').value;
+    const minutes = parts.find(p => p.type === 'minute').value;
+    const timeString = `${hours}:${minutes}`;
+
+    const lockTimeEl = document.getElementById('lock-time-text');
+    if (lockTimeEl) lockTimeEl.innerText = timeString;
+
+    const statusTimeEl = document.getElementById('status-time');
+    if (statusTimeEl) statusTimeEl.innerText = timeString;
+}
+setInterval(syncRealToBeijingTime, 1000);
+syncRealToBeijingTime();
+
+
+// ==================== 2. 30秒内三条定时消息推送逻辑 ====================
+let isUnlocked = false;
+const messagesQueue = [
+    { ko: "내 珍珍韩振 지금 뭐해", cn: "我的珍珍韩振现在在干嘛" },
+    { ko: "보고 싶어", cn: "我想你了" },
+    { ko: "왜 먼저 연락 안 해, 너무 슬퍼", cn: "怎么不主动找我，我好伤心" }
+];
+let currentMsgIndex = 0;
+let callTriggerTimer = null;
+
+// 页面加载后立即启动第一条，之后每隔 10 秒触发下一条
+function initMessageSequence() {
+    triggerNextMessage(); // 第0秒
+    setTimeout(() => { triggerNextMessage(); }, 10000); // 第10秒
+    setTimeout(() => { triggerNextMessage(); }, 20000); // 第20秒 (总共30秒内3条)
+}
+
+function triggerNextMessage() {
+    if (currentMsgIndex >= messagesQueue.length) return;
+    const msg = messagesQueue[currentMsgIndex];
+    currentMsgIndex++;
+
+    if (!isUnlocked) {
+        // 未解锁：显示在锁屏通知界面
+        const notifText = document.getElementById('lock-msg-text');
+        if (notifText) notifText.innerText = msg.ko;
+    } else {
+        // 已解锁：像微信一样在屏幕上方弹出横幅
+        showWeChatBanner(msg.ko);
+    }
+}
+
+// 微信样式顶部弹窗横幅
+function showWeChatBanner(text) {
+    const banner = document.createElement('div');
+    banner.style.cssText = `
+        position: fixed; top: 12px; left: 50%; transform: translateX(-50%); width: 92%; max-width: 400px;
+        background: rgba(30, 30, 30, 0.92); backdrop-filter: blur(12px); color: #fff; padding: 12px 16px;
+        border-radius: 16px; z-index: 99999; box-shadow: 0 10px 30px rgba(0,0,0,0.4); animation: slideDown 0.3s ease;
+    `;
+    banner.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <div style="width: 22px; height: 22px; border-radius: 50%; background: #25d366; display:flex; justify-content:center; align-items:center; font-size:10px;">💬</div>
+            <b style="font-size: 13px;">🐑</b>
+            <span style="font-size: 11px; color: #aaa; margin-left: auto;">刚刚</span>
+        </div>
+        <div style="font-size: 13.5px;">${text}</div>
+    `;
+    document.body.appendChild(banner);
+    setTimeout(() => { banner.remove(); }, 4000);
+}
+
+// 用户解锁手机时调用此函数
+function unlockPhoneToHome() {
+    isUnlocked = true;
+    document.getElementById('lock-screen').style.display = 'none';
+    document.getElementById('home-screen').style.display = 'block'; // 假设你的主屏幕ID
+}
+
+
+// ==================== 3. KakaoTalk 互动与打字机动画 ====================
+function sendBieNaoMessage() {
+    const chatBody = document.getElementById('kkt-chat-body');
+    
+    // 用户发送“别闹”
+    chatBody.insertAdjacentHTML('beforeend', `
+        <div style="display: flex; justify-content: flex-end; margin: 4px 0;">
+            <div style="background: #fee500; color: #111; padding: 10px 14px; border-radius: 16px; font-size: 13.5px;">别闹</div>
+        </div>
+    `);
+    chatBody.scrollTop = chatBody.scrollHeight;
+
+    // 显示“正在输入”的三个灰色跳动点气泡
+    const typingId = 'typing-' + Date.now();
+    chatBody.insertAdjacentHTML('beforeend', `
+        <div id="${typingId}" style="display: flex; align-items: flex-end; gap: 8px; margin: 4px 0;">
+            <div style="width: 32px; height: 32px; border-radius: 12px; background: #ccc;"></div>
+            <div style="background: #fff; padding: 12px 16px; border-radius: 16px; display: flex; gap: 4px; align-items: center;">
+                <span style="width: 6px; height: 6px; background: #999; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both;"></span>
+                <span style="width: 6px; height: 6px; background: #999; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.2s;"></span>
+                <span style="width: 6px; height: 6px; background: #999; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.4s;"></span>
+            </div>
+        </div>
+    `);
+    chatBody.scrollTop = chatBody.scrollHeight;
+
+    // 3秒后移除打字机气泡，展示申惟的韩文回复及中文翻译
+    setTimeout(() => {
+        const typingEl = document.getElementById(typingId);
+        if (typingEl) typingEl.remove();
+
+        chatBody.insertAdjacentHTML('beforeend', `
+            <div style="display: flex; align-items: flex-end; gap: 8px; margin: 4px 0;">
+                <div style="width: 32px; height: 32px; border-radius: 12px; background: #ccc;"></div>
+                <div style="max-width: 72%; display: flex; flex-direction: column;">
+                    <div style="background: #fff; color: #111; padding: 10px 14px; border-radius: 16px; font-size: 13.5px;">아, 미움받는구나…</div>
+                    <div style="font-size: 11.5px; color: #666; margin-top: 3px; background: rgba(0,0,0,0.04); padding: 4px 8px; border-radius: 6px;">啊，我被讨厌了…</div>
+                </div>
+            </div>
+        `);
+        chatBody.scrollTop = chatBody.scrollHeight;
+
+        // 【关键触发点】对话完成后 3 秒，无论在哪个界面弹出视频邀请！
+        callTriggerTimer = setTimeout(() => {
+            showVideoCallPopup();
+        }, 3000);
+
+    }, 3000);
+}
+
+
+// ==================== 4. 视频通话与分支逻辑 ====================
+let declineCount = 0; // 记录拒绝次数
+
+function showVideoCallPopup() {
+    let callModal = document.getElementById('video-call-modal');
+    if (!callModal) {
+        callModal = document.createElement('div');
+        callModal.id = 'video-call-modal';
+        callModal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 999999;
+            display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 70px 20px; color: #fff;
+        `;
+        document.body.appendChild(callModal);
+    }
+    
+    callModal.style.display = 'flex';
+    callModal.innerHTML = `
+        <div style="text-align: center; margin-top: 30px;">
+            <div style="width: 100px; height: 100px; border-radius: 50%; background: #444; margin: 0 auto 16px; background-size: cover;"></div>
+            <h2 style="font-size: 22px; font-weight: 600;">🐑</h2>
+            <p style="color: #aaa; font-size: 14px; margin-top: 8px;">视频通话邀请...</p>
+        </div>
+        <div style="display: flex; gap: 70px; margin-bottom: 70px;">
+            <button onclick="handleCallResponse('decline')" style="width: 70px; height: 70px; border-radius: 50%; background: #ff3b30; border: none; color: #fff; font-size: 24px; cursor: pointer; box-shadow: 0 4px 15px rgba(255,59,48,0.4);">📞</button>
+            <button onclick="handleCallResponse('accept')" style="width: 70px; height: 70px; border-radius: 50%; background: #34c759; border: none; color: #fff; font-size: 24px; cursor: pointer; box-shadow: 0 4px 15px rgba(52,199,89,0.4);">📹</button>
+        </div>
+    `;
+}
+
+function handleCallResponse(action) {
+    const callModal = document.getElementById('video-call-modal');
+
+    if (action === 'accept') {
+        // 分支 1：接听后 3 秒自动挂断，申惟发送“你是谁？”
+        callModal.innerHTML = `<div style="margin: auto; text-align: center;"><h3 style="color:#aaa;">视频通话中... (00:03)</h3></div>`;
+        setTimeout(() => {
+            callModal.style.display = 'none';
+            injectKktMessage("누구세요?", "你是谁？");
+        }, 3000);
+    } else {
+        // 拒绝分支
+        declineCount++;
+        callModal.style.display = 'none';
+
+        if (declineCount === 1) {
+            // 第一次拒绝：发送“为什么不接…”并再打一次
+            injectKktMessage("왜 안 받아…", "为什么不接…");
+            setTimeout(() => {
+                showVideoCallPopup();
+            }, 4000);
+        } else {
+            // 第二次拒绝：连续轰炸多条消息
+            injectKktMessage("어디야?", "你在哪里？");
+            setTimeout(() => { injectKktMessage("오늘 무슨 스케줄 있어?", "今天有什么活动吗？"); }, 1000);
+            setTimeout(() => { injectKktMessage("왜 나 무시해", "为什么不理我"); }, 2000);
+            setTimeout(() => { injectKktMessage("진진 한진 변했어…", "珍珍韩振你变心了…"); }, 3000);
+        }
+    }
+}
+
+// 自动向 KKT 聊天窗口注入申惟发来的消息
+function injectKktMessage(koText, cnText) {
+    const chatBody = document.getElementById('kkt-chat-body');
+    if (chatBody) {
+        chatBody.insertAdjacentHTML('beforeend', `
+            <div style="display: flex; align-items: flex-end; gap: 8px; margin: 4px 0;">
+                <div style="width: 32px; height: 32px; border-radius: 12px; background: #ccc;"></div>
+                <div style="max-width: 72%; display: flex; flex-direction: column;">
+                    <div style="background: #fff; color: #111; padding: 10px 14px; border-radius: 16px; font-size: 13.5px;">${koText}</div>
+                    <div style="font-size: 11.5px; color: #666; margin-top: 3px; background: rgba(0,0,0,0.04); padding: 4px 8px; border-radius: 6px;">${cnText}</div>
+                </div>
+            </div>
+        `);
+        chatBody.scrollTop = chatBody.scrollHeight;
+    }
+}
+
+// Gmail 收件箱：邮件默认以约 2 cm 高度显示摘要，点击后展开全文
+function initGmailInbox() {
+    const body = document.querySelector('#app-gmail .app-body');
+    if (!body) return;
+    const children = Array.from(body.children);
+    if (children[0]) children[0].classList.add('gmail-inbox-title');
+    children.slice(1).forEach((card, index) => {
+        if (card.dataset.gmailReady === '1') return;
+        card.dataset.gmailReady = '1';
+        card.classList.add('gmail-email-card');
+        if (index < 2) card.classList.add('unread');
+        const rows = card.querySelectorAll('div');
+        if (rows.length >= 3) {
+            rows[0].classList.add('gmail-sender-row');
+            const sender = rows[0].querySelector('span:first-child');
+            if (sender) sender.classList.add('gmail-sender');
+            // The subject block is the first bold block after the sender row.
+            for (const el of Array.from(card.children)) {
+                if (el !== rows[0] && (el.style.fontWeight === '700' || el.style.fontWeight === 'bold')) {
+                    el.classList.add('gmail-subject');
+                    break;
+                }
+            }
+            const all = Array.from(card.querySelectorAll('div'));
+            const senderRow = card.querySelector('.gmail-sender-row');
+            let foundSubject = false;
+            all.forEach(el => {
+                if (el.classList.contains('gmail-subject')) foundSubject = true;
+                else if (foundSubject && el !== senderRow && !el.closest('.gmail-subject')) el.classList.add('gmail-message-body');
+            });
+        }
+        const hint = document.createElement('div');
+        hint.className = 'gmail-tap-hint';
+        hint.textContent = '点按查看邮件全文';
+        card.appendChild(hint);
+        card.setAttribute('role','button');
+        card.setAttribute('tabindex','0');
+        const toggle = () => {
+            const open = card.classList.toggle('expanded');
+            hint.textContent = open ? '点按收起' : '点按查看邮件全文';
+        };
+        card.addEventListener('click', toggle);
+        card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    });
+}
+function searchMap() {
+    const input = document.getElementById('maps-query');
+    const frame = document.getElementById('maps-frame');
+    if (!input || !frame) return;
+    const q = input.value.trim() || '延世大学，首尔';
+    frame.src = 'https://maps.google.com/maps?q=' + encodeURIComponent(q + ', Seoul, South Korea') + '&t=&z=15&ie=UTF8&iwloc=&output=embed';
+}
+function setMapQuery(q) {
+    const input = document.getElementById('maps-query');
+    if (input) input.value = q;
+    searchMap();
+}
+
+// 页面刚加载时初始化交互
+window.addEventListener('DOMContentLoaded', () => {
+    initMessageSequence();
+    initGmailInbox();
+});
+
+
+</script>
+<!-- 说明：Threads、X、Instagram 的页面为模拟器内的仿制交互界面；真实 App 的品牌界面会随版本、地区及登录状态变化，无法保证像素级完全一致。 -->
+</body>
+</html>
